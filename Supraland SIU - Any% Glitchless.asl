@@ -5,6 +5,7 @@ state("SupralandSIU-Win64-Shipping")
     // For stuff that's different than the rest, we do it here.
     bool inputDisabled : 0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x580, 0x398;
     byte pickaxe : 0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0xee8;
+    byte area : 0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0x1318;
 }
 
 startup
@@ -15,14 +16,19 @@ startup
         { "JumpHeightPlus", Tuple.Create("High Jump", "Split on picking up the high jump upgrade.") },
         { "SkillCrouch", Tuple.Create("Crouch", "Split on picking up the crouch upgrade.") },
         { "Pickaxe", Tuple.Create("Pickaxe & Upgrades", "Split on picking up the wooden pickaxe, stone, iron, or diamond.") },
+        { "MinesToCage", Tuple.Create("Mines to Cage", "Split on going from Mines to Cage area.") },
         { "SkillHasGrapple", Tuple.Create("Grapple Beam", "Split on picking up the grapple beam.") },
         { "SkillHasBelt", Tuple.Create("Magnet Belt", "Split on picking up the magnet belt.") },
+        { "CageToFactory", Tuple.Create("Cage to Factory", "Split on going from Cage to Factory area.") },
         { "MagnetRepel", Tuple.Create("Magnet Belt Repel", "Split on picking up the magnet belt repel upgrade.") },
+        { "CageToBank", Tuple.Create("Cage to Bank", "Split on going from Cage to Bank area.") },
         { "SkillHasElectricGun", Tuple.Create("Electric Gun", "Split on picking up the electric gun.") },
         { "SkillGrappleGold", Tuple.Create("Grapple Beam Gold Upgrade", "Split on picking up the grapple beam gold upgrade.") },
         { "Strong", Tuple.Create("Strength", "Split on getting strong in the gym.") },
         { "SkillHasForceBlock", Tuple.Create("Force Cube", "Split on getting the Force Cube.") },
         { "SkillHasTranslocator", Tuple.Create("Translocator", "Split on getting the Translocator.") },
+        { "BeachToCastle", Tuple.Create("Beach to Castle", "Split on going from Beach to Castle area.") },
+        { "CastleToCage", Tuple.Create("Castle to Cage", "Split on going from Castle to cage area.") },
         { "Endgame", Tuple.Create("End", "Split on hitting the endgame trigger.") },
     };
 
@@ -70,6 +76,14 @@ init {
 
     // Special case for pickaxe, since it's a byte instead of a bool and the tier matters.
     vars.collectedPickaxe = 0;
+
+    // Special case for area transitions.
+    vars.triggeredMinesToCage = false;
+    vars.triggeredCageToFactory = false;
+    vars.triggeredCageToBank = false;
+    vars.triggeredCageToBeach = false;
+    vars.triggeredBeachToCastle = false;
+    vars.triggeredCastleToCage = false;
 }
 
 // Start the auto-splitter when this returns true.
@@ -96,6 +110,14 @@ onStart {
 
     // Reset pickaxe tier
     vars.collectedPickaxe = 0;
+
+    // Reset area transition flags
+    vars.triggeredMinesToCage = false;
+    vars.triggeredCageToFactory = false;
+    vars.triggeredCageToBank = false;
+    vars.triggeredCageToBeach = false;
+    vars.triggeredBeachToCastle = false;
+    vars.triggeredCastleToCage = false;
 }
 
 // Run before split.
@@ -122,6 +144,48 @@ split
     if (settings["Pickaxe"] && current.pickaxe > old.pickaxe && vars.collectedPickaxe < current.pickaxe) {
         print("[Autosplit] Pickaxe tier " + current.pickaxe);
         vars.collectedPickaxe = current.pickaxe;
+        return true;
+    }
+
+    // Area is different because I'm looking for specific transitions.
+    if (settings["BeachToCastle"] && !vars.triggeredBeachToCastle && old.area == 5 && current.area == 8) {
+        print("[Autosplit] Beach to Castle");
+        vars.triggeredBeachToCastle = true;
+        return true;
+    }
+
+    // Area is different because I'm looking for specific transitions.
+    if (settings["CastleToCage"] && !vars.triggeredCastleToCage && old.area == 8 && current.area == 2) {
+        print("[Autosplit] Castle to Cage");
+        vars.triggeredCastleToCage = true;
+        return true;
+    }
+
+        // Area is different because I'm looking for specific transitions.
+    if (settings["MinesToCage"] && !vars.triggeredMinesToCage && old.area == 1 && current.area == 2) {
+        print("[Autosplit] Mines to Cage");
+        vars.triggeredMinesToCage = true;
+        return true;
+    }
+
+    // Area is different because I'm looking for specific transitions.
+    if (settings["CageToFactory"] && !vars.triggeredCageToFactory && old.area == 2 && current.area == 3) {
+        print("[Autosplit] Cage to Factory");
+        vars.triggeredCageToFactory = true;
+        return true;
+    }
+
+    // Area is different because I'm looking for specific transitions.
+    if (settings["CageToBank"] && !vars.triggeredCageToBank && old.area == 2 && current.area == 4) {
+        print("[Autosplit] Cage to Bank");
+        vars.triggeredCageToBank = true;
+        return true;
+    }
+
+    // Area is different because I'm looking for specific transitions.
+    if (settings["CageToBeach"] && !vars.triggeredCageToBeach && old.area == 2 && current.area == 5) {
+        print("[Autosplit] Cage to Beach");
+        vars.triggeredCageToBeach = true;
         return true;
     }
 }
