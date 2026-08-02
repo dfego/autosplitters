@@ -30,13 +30,21 @@ startup
         Tuple.Create("Castle", "Cage"),
     };
 
+    // Pickaxe "constants".
+    vars.pickaxeTiers = new Dictionary<string, byte> {
+        // { "None", 0},
+        { "Wood", 1 },
+        { "Stone", 2 },
+        { "Iron", 3 },
+        { "Diamond", 4 },
+    };
+
     // Settings stuff
     var settingsData = new Dictionary<string, Tuple<string, string>> {
         { "TutorialDone", Tuple.Create("Down the Pipe", "Split on going down the pipe during the intro cutscene.") },
         { "SkillWalkSpeedx2", Tuple.Create("Speed Upgrade", "Split on picking up the speed upgrade in the bunker.") },
         { "JumpHeightPlus", Tuple.Create("High Jump", "Split on picking up the high jump upgrade.") },
         { "SkillCrouch", Tuple.Create("Crouch", "Split on picking up the crouch upgrade.") },
-        { "Pickaxe", Tuple.Create("Pickaxe & Upgrades", "Split on picking up the wooden pickaxe, stone, iron, or diamond.") },
         { "SkillHasGrapple", Tuple.Create("Grapple Beam", "Split on picking up the grapple beam.") },
         { "SkillHasBelt", Tuple.Create("Magnet Belt", "Split on picking up the magnet belt.") },
         { "MagnetRepel", Tuple.Create("Magnet Belt Repel", "Split on picking up the magnet belt repel upgrade.") },
@@ -64,6 +72,19 @@ startup
         string settingKey = fromArea + "To" + toArea;
         string settingName = fromArea + " to " + toArea;
         string settingTooltip = "Split on going from the " + fromArea + " area to the " + toArea + " area for the first time.";
+
+        settings.Add(settingKey, true, settingName);
+        settings.SetToolTip(settingKey, settingTooltip);
+    }
+
+    // Handle pickaxe upgrades as well.
+    settings.CurrentDefaultParent = "splits";
+    settings.Add("pickaxe", true, "Pickaxe Upgrades");
+    settings.CurrentDefaultParent = "pickaxe";
+    foreach (var tier in vars.pickaxeTiers) {
+        string settingKey = "Pickaxe" + tier.Key;
+        string settingName = "Pickaxe: " + tier.Key;
+        string settingTooltip = "Split on picking up the " + tier.Key + " pickaxe.";
 
         settings.Add(settingKey, true, settingName);
         settings.SetToolTip(settingKey, settingTooltip);
@@ -109,10 +130,13 @@ init {
         vars.collected.Add(transitionKey, false);
     }
 
-    // If at some point I have other flags that don't sit inside FirstPersonCharacter, add them manually right here.
+    // Add the pickaxe tiers to collected as well, based on the tier name.
+    foreach (var tier in vars.pickaxeTiers) {
+        string tierKey = "Pickaxe" + tier.Key;
+        vars.collected.Add(tierKey, false);
+    }
 
-    // Special case for pickaxe, since it's a byte instead of a bool and the tier matters.
-    vars.collectedPickaxe = 0;
+    // If at some point I have other flags that don't sit inside FirstPersonCharacter, add them manually right here.
 }
 
 // Start the auto-splitter when this returns true.
@@ -136,9 +160,6 @@ onStart {
         vars.collected[key] = false;
         print("[Autosplit] Collected " + key + ": " + vars.collected[key]);
     }
-
-    // Reset pickaxe tier
-    vars.collectedPickaxe = 0;
 }
 
 // Run before split.
@@ -161,13 +182,6 @@ split
         }
     }
 
-    // Pickaxe is separate because it's got tiers.
-    if (settings["Pickaxe"] && current.pickaxe > old.pickaxe && vars.collectedPickaxe < current.pickaxe) {
-        print("[Autosplit] Pickaxe tier " + current.pickaxe);
-        vars.collectedPickaxe = current.pickaxe;
-        return true;
-    }
-
     // Area transitions are also tracked separately.
     // Theoretically I just want the first time we get to certain areas mostly, but I'd rather be explicit.
     foreach (var transition in vars.areaTransitions) {
@@ -177,6 +191,16 @@ split
         if (settings[transitionKey] && !vars.collected[transitionKey] && old.area == vars.areas[fromArea] && current.area == vars.areas[toArea]) {
             print("[Autosplit] " + fromArea + " to " + toArea);
             vars.collected[transitionKey] = true;
+            return true;
+        }
+    }
+
+    // Pickaxe upgrades are also tracked separately. We loop because we need to respect the settings.
+    foreach (var tier in vars.pickaxeTiers) {
+        string tierKey = "Pickaxe" + tier.Key;
+        if (settings[tierKey] && !vars.collected[tierKey] && current.pickaxe > old.pickaxe && current.pickaxe == tier.Value) {
+            print("[Autosplit] Pickaxe tier " + tier.Key);
+            vars.collected[tierKey] = true;
             return true;
         }
     }
