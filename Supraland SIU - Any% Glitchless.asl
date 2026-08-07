@@ -10,6 +10,14 @@ state("SupralandSIU-Win64-Shipping")
 
 startup
 {
+    string jsonString = File.ReadAllText("Components/Supraland SIU - Any% Glitchless.json");
+    vars.Config = JsonNode.Parse(jsonString);
+    if (vars.Config == null) {
+        print("[Autosplit] Failed to load config file.");
+    } else {
+        print("[Autosplit] Loaded config file.");
+    }
+
     // Area transition "constants". I'd make an enum but I don't think I can do that here.
     vars.areas = new Dictionary<string, byte> {
         { "Mines", 1 },
@@ -39,28 +47,20 @@ startup
         { "Diamond", 4 },
     };
 
-    // Settings stuff
-    var settingsData = new Dictionary<string, Tuple<string, string>> {
-        { "TutorialDone", Tuple.Create("Down the Pipe", "Split on going down the pipe during the intro cutscene.") },
-        { "SkillWalkSpeedx2", Tuple.Create("Speed Upgrade", "Split on picking up the speed upgrade in the bunker.") },
-        { "JumpHeightPlus", Tuple.Create("High Jump", "Split on picking up the high jump upgrade.") },
-        { "SkillCrouch", Tuple.Create("Crouch", "Split on picking up the crouch upgrade.") },
-        { "SkillHasGrapple", Tuple.Create("Grapple Beam", "Split on picking up the grapple beam.") },
-        { "SkillHasBelt", Tuple.Create("Magnet Belt", "Split on picking up the magnet belt.") },
-        { "MagnetRepel", Tuple.Create("Magnet Belt Repel", "Split on picking up the magnet belt repel upgrade.") },
-        { "SkillHasElectricGun", Tuple.Create("Electric Gun", "Split on picking up the electric gun.") },
-        { "SkillGrappleGold", Tuple.Create("Grapple Beam Gold Upgrade", "Split on picking up the grapple beam gold upgrade.") },
-        { "Strong", Tuple.Create("Strength", "Split on getting strong in the gym.") },
-        { "SkillHasForceBlock", Tuple.Create("Force Cube", "Split on getting the Force Cube.") },
-        { "SkillHasTranslocator", Tuple.Create("Translocator", "Split on getting the Translocator.") },
-        { "Endgame", Tuple.Create("End", "Split on hitting the endgame trigger.") },
-    };
-
+    // Add splits from the config file
     settings.Add("splits", true, "Splits");
     settings.CurrentDefaultParent = "splits";
-    foreach (string key in settingsData.Keys) {
-        settings.Add(key, true, settingsData[key].Item1);
-        settings.SetToolTip(key, settingsData[key].Item2);
+    foreach (var split in vars.Config["splits"].AsArray()) {
+        string key = split["key"].GetValue<string>();
+        // print("[Autosplit] Adding setting for: " + key);
+        if (split["setting"] != null) {
+            var setting = split["setting"];
+            string setting_name = setting["name"].GetValue<string>();
+            string setting_desc = setting["desc"].GetValue<string>();
+            bool setting_default = setting["default"] != null ? setting["default"].GetValue<bool>() : true;
+            settings.Add(key, setting_default, setting_name);
+            settings.SetToolTip(key, setting_desc);
+        }
     }
 
     // This creates a sub-setting of areas under splits and adds the area transitions.
@@ -92,36 +92,33 @@ startup
 }
 
 init {
-    // Map the keys to the final segment of the pointer address inside the character controller.
-    // At time of writing they're all in there, so I'm trying to keep the amount of code minimal to avoid typos.
-    var memoryFlags = new Dictionary<string, int> {
-        { "TutorialDone", 0x7bb },
-        { "SkillWalkSpeedx2", 0x7c2 },
-        { "JumpHeightPlus", 0xa48 },
-        { "SkillCrouch", 0x1319 },
-        { "SkillHasGrapple", 0x7cc },
-        { "SkillHasBelt", 0x7c9 },
-        { "MagnetRepel", 0xec3 },
-        { "SkillHasElectricGun", 0x1200 },
-        { "SkillGrappleGold", 0xe88 },
-        { "Strong", 0xe82 },
-        { "SkillHasForceBlock", 0x7c3 },
-        { "SkillHasTranslocator", 0x7ce },
-        { "Endgame", 0xeac }
-    };
-
     // Watchers are what we use to check state from the game's memory.
+    // Declare this early so update doesn't freak out if it's an Unknown version.
     vars.watchers = new MemoryWatcherList();
 
     // This is where we separately track things that have happened to avoid weird issues with cutscenes
     // taking away our items.
     vars.collected = new Dictionary<string, bool>();
 
+    // Get memory size of first module for version detection.
+    int memorySize = modules.First().ModuleMemorySize;
+
+    // Look up the version, defaulting to "Unknown" if we don't have that version.
+    if (vars.Config["versions"] != null && vars.Config["versions"][memorySize.ToString()] != null) {
+        version = vars.Config["versions"][memorySize.ToString()].GetValue<string>();
+        print("[Autosplit] Detected game version: " + version);
+    } else {
+        print("[Autosplit] Unknown game version with memory size: " + memorySize);
+        return false;
+    }
+
     // Build the above variables from the single array. I do it this way to once again keep a single
     // source of truth for the key names and memory addresses.
-    foreach (var flag in memoryFlags) {
-        vars.watchers.Add(new MemoryWatcher<bool>(new DeepPointer(0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, flag.Value)) { Name = flag.Key });
-        vars.collected.Add(flag.Key, false);
+    foreach (var split in vars.Config["splits"].AsArray()) {
+        string key = split["key"].GetValue<string>();
+        int offset = split["offset"][version].GetValue<int>();
+        vars.watchers.Add(new MemoryWatcher<bool>(new DeepPointer(0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, offset)) { Name = key });
+        vars.collected.Add(key, false);
     }
 
     // Add the area transitions to collected as well, based on the from string + to string.
@@ -165,17 +162,22 @@ onStart {
 // Run before split.
 update
 {
-    // Because this is using watchers instead of the state block, we need to update the watchers every frame.
-    vars.watchers.UpdateAll(game);
+    if (version != "Unknown") {
+        vars.watchers.UpdateAll(game);
+    }
 }
 
 // If this returns true, it splits.
 split
 {
+    if (version == "Unknown") {
+        return false;
+    }
+    
     // Iterate over each watcher and if it's enabled and it's different, then we split.
     // We also guard against re-setting on the same flag by checking our collected array.
     foreach (MemoryWatcher watcher in vars.watchers) {
-        if (settings[watcher.Name] && !vars.collected[watcher.Name] && (bool)watcher.Old != (bool)watcher.Current && (bool)watcher.Current) {
+        if (settings[watcher.Name] && !vars.collected[watcher.Name] && watcher.Old != null && watcher.Current != null && (bool)watcher.Old != (bool)watcher.Current && (bool)watcher.Current) {
             print("[Autosplit] " + watcher.Name);
             vars.collected[watcher.Name] = true;
             return true;

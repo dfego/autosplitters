@@ -1,0 +1,96 @@
+# Game versions based on ModuleMemorySize (in decimal bytes)
+versions:
+  "86704128": "v1.2.3349"
+
+splits:
+  - key: TutorialDone
+    offset:
+      v1.2.3349: 0x7bb
+    setting:
+      name: Down the Pipe
+      desc: Split on going down the pipe during the intro cutscene.
+      default: true
+  - key: SkillWalkSpeedx2
+    offset:
+      v1.2.3349: 0x7c2
+    setting:
+      name: Speed Upgrade
+      desc: Split on picking up the speed upgrade in the bunker.
+      default: true
+  - key: JumpHeightPlus
+    offset:
+      v1.2.3349: 0xa48
+    setting:
+      name: High Jump
+      desc: Split on picking up the high jump upgrade.
+      default: true
+  - key: SkillCrouch
+    offset:
+      v1.2.3349: 0x1319
+    setting:
+      name: Crouch
+      desc: Split on picking up the crouch upgrade.
+      default: true
+  - key: SkillHasGrapple
+    offset:
+      v1.2.3349: 0x7cc
+    setting:
+      name: Grapple Beam
+      desc: Split on picking up the grapple beam.
+      default: true
+  - key: SkillHasBelt
+    offset:
+      v1.2.3349: 0x7c9
+    setting:
+      name: Magnet Belt
+      desc: Split on picking up the magnet belt.
+      default: true
+  - key: MagnetRepel
+    offset:
+      v1.2.3349: 0xec3
+    setting:
+      name: Magnet Belt Repel
+      desc: Split on picking up the magnet belt repel upgrade.
+      default: true
+  - key: SkillHasElectricGun
+    offset:
+      v1.2.3349: 0x1200
+    setting:
+      name: Electric Gun
+      desc: Split on picking up the electric gun.
+      default: true
+  - key: SkillGrappleGold
+    offset:
+      v1.2.3349: 0xe88
+    setting:
+      name: Grapple Beam Gold Upgrade
+      desc: Split on picking up the grapple beam gold upgrade.
+      default: true
+  - key: Strong
+    offset:
+      v1.2.3349: 0xe82
+    setting:
+      name: Strength
+      desc: Split on getting strong in the gym.
+      default: true
+  - key: SkillHasForceBlock
+    offset:
+      v1.2.3349: 0x7c3
+    setting:
+      name: Force Cube
+      desc: Split on getting the Force Cube.
+      default: true
+  - key: SkillHasTranslocator
+    offset:
+      v1.2.3349: 0x7ce
+    setting:
+      name: Translocator
+      desc: Split on getting the Translocator.
+      default: true
+  - key: Endgame
+    offset:
+      v1.2.3349: 0xeac
+    setting:
+      name: End
+      desc: Split on hitting the endgame trigger.
+      default: true
