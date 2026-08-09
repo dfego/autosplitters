@@ -3,19 +3,19 @@ state("SupralandSIU-Win64-Shipping")
 {
     // Most of the setup that normally goes here is done now with MemoryWatchers in init.
     // For stuff that's different than the rest, we do it here.
-    bool inputDisabled : 0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x580, 0x398;
     byte pickaxe : 0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0xee8;
     byte area : 0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0x1318;
 }
 
 startup
 {
-    string jsonString = File.ReadAllText("Components/Supraland SIU - Any% Glitchless.json");
+    string configFilePath = "Components/Supraland SIU - Any% Glitchless.json";
+    string jsonString = File.ReadAllText(configFilePath);
     vars.Config = JsonNode.Parse(jsonString);
     if (vars.Config == null) {
-        print("[Autosplit] Failed to load config file.");
+        print("[Autosplit] Failed to load config file: " + configFilePath);
     } else {
-        print("[Autosplit] Loaded config file.");
+        print("[Autosplit] Loaded config file: " + configFilePath);
     }
 
     // Area transition "constants". I'd make an enum but I don't think I can do that here.
@@ -112,6 +112,25 @@ init {
         return false;
     }
 
+    // Helper function for buliding pointer maps from the arrays
+    Func<JsonNode, DeepPointer> buildPointer = (node) => {
+        var arr = node.AsArray();
+
+        int baseAddress = arr[0].GetValue<int>();
+        int[] offsets = arr.Skip(1).Select(x => x.GetValue<int>()).ToArray();
+
+        return new DeepPointer(baseAddress, offsets);
+    };
+
+    // This is the variable used to watch for starting the timer.
+    vars.inputDisabled = null;
+    if (vars.Config["start_pointers"] != null &&
+        vars.Config["start_pointers"]["input_disabled"] != null &&
+        vars.Config["start_pointers"]["input_disabled"][version] != null) {
+        DeepPointer startPointer = buildPointer(vars.Config["start_pointers"]["input_disabled"][version]);
+        vars.inputDisabled = new MemoryWatcher<bool>(startPointer) { Name = "inputDisabled" };
+    }
+
     // Build the above variables from the single array. I do it this way to once again keep a single
     // source of truth for the key names and memory addresses.
     foreach (var split in vars.Config["splits"].AsArray()) {
@@ -139,11 +158,11 @@ init {
 // Start the auto-splitter when this returns true.
 start
 {
-    // This is buried deep within the character controller, in the action manager.
-    // However, it does seem to trigger exactly at the right time.
-    // Finding this took me longer than the rest of the script to this point.
-    if (old.inputDisabled && !current.inputDisabled) {
-        print("[Autosplit] start (inputDisabled off)");
+    if (vars.inputDisabled != null &&
+        vars.inputDisabled.Old != null &&
+        (bool)vars.inputDisabled.Old &&
+        !(bool)vars.inputDisabled.Current) {
+        print("[Autosplit] start (input disabled off)");
         return true;
     }
 }
@@ -163,6 +182,9 @@ onStart {
 update
 {
     if (version != "Unknown") {
+        if (vars.inputDisabled != null) {
+            vars.inputDisabled.Update(game);
+        }
         vars.watchers.UpdateAll(game);
     }
 }

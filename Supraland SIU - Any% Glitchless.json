@@ -2,6 +2,20 @@
   "versions": {
     "86704128": "v1.2.3349"
   },
+  "start_pointers": {
+    "input_disabled": {
+      "v1.2.3349": [
+        81593544,
+        3368,
+        56,
+        0,
+        48,
+        1408,
+        920
+      ]
+    }
+  },
+  "shared_split_pointers": null,
   "splits": [
     {
       "key": "TutorialDone",
