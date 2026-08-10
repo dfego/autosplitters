@@ -277,6 +277,44 @@
           "default": true
         }
       }
+    ],
+    "pickaxe_tiers": [
+      {
+        "key": "PickaxeWood",
+        "tier": 1,
+        "setting": {
+          "name": "Wooden Pickaxe",
+          "desc": "Split on getting the wooden pickaxe.",
+          "default": true
+        }
+      },
+      {
+        "key": "PickaxeStone",
+        "tier": 2,
+        "setting": {
+          "name": "Stone Pickaxe",
+          "desc": "Split on getting the stone pickaxe.",
+          "default": true
+        }
+      },
+      {
+        "key": "PickaxeIron",
+        "tier": 3,
+        "setting": {
+          "name": "Iron Pickaxe",
+          "desc": "Split on getting the iron pickaxe.",
+          "default": true
+        }
+      },
+      {
+        "key": "PickaxeDiamond",
+        "tier": 4,
+        "setting": {
+          "name": "Diamond Pickaxe",
+          "desc": "Split on getting the diamond pickaxe.",
+          "default": true
+        }
+      }
     ]
   }
 }

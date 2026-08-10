@@ -3,7 +3,6 @@ state("SupralandSIU-Win64-Shipping")
 {
     // Most of the setup that normally goes here is done now with MemoryWatchers in init.
     // For stuff that's different than the rest, we do it here.
-    byte pickaxe : 0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0xee8;
     byte area : 0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0x1318;
 }
 
@@ -38,32 +37,42 @@ startup
         Tuple.Create("Castle", "Cage"),
     };
 
-    // Pickaxe "constants".
-    vars.pickaxeTiers = new Dictionary<string, byte> {
-        // { "None", 0},
-        { "Wood", 1 },
-        { "Stone", 2 },
-        { "Iron", 3 },
-        { "Diamond", 4 },
+    // Create categories for the settings.
+    settings.Add("splits", true, "Splits");
+    settings.Add("flags", true, "Flags", "splits");
+    // settings.Add("areas", true, "Area Transitions");
+    settings.Add("pickaxe", true, "Pickaxe Upgrades", "splits");
+
+    // Helper delegate to build the settings displayed to the user.
+    Action<JsonNode, string> buildSettings = (categoryNode, parentSettingKey) =>  {
+        if (categoryNode != null) {
+            // Ensure all the following settings are children of the parentSettingKey in the UI.
+            settings.CurrentDefaultParent = parentSettingKey;
+
+            // Iterate over each split
+            foreach (var split in categoryNode.AsArray()) {
+                string key = split["key"].GetValue<string>();
+                var settingNode = split["setting"];
+                if (settingNode != null) {
+                    string settingName = settingNode["name"].GetValue<string>();
+                    string settingDesc = settingNode["desc"].GetValue<string>();
+                    bool settingDefault = settingNode["default"] != null ? settingNode["default"].GetValue<bool>() : true;
+                    settings.Add(key, settingDefault, settingName);
+                    settings.SetToolTip(key, settingDesc);
+                }
+            }
+        }
     };
 
-    // Add splits from the config file
-    settings.Add("splits", true, "Splits");
-    settings.CurrentDefaultParent = "splits";
-    foreach (var split in vars.Config["splits"]["flags"].AsArray()) {
-        string key = split["key"].GetValue<string>();
-        // print("[Autosplit] Adding setting for: " + key);
-        if (split["setting"] != null) {
-            var setting = split["setting"];
-            string setting_name = setting["name"].GetValue<string>();
-            string setting_desc = setting["desc"].GetValue<string>();
-            bool setting_default = setting["default"] != null ? setting["default"].GetValue<bool>() : true;
-            settings.Add(key, setting_default, setting_name);
-            settings.SetToolTip(key, setting_desc);
-        }
+    // Call the above settings builder for each split category.
+    if (vars.Config["splits"] != null) {
+        buildSettings(vars.Config["splits"]["flags"], "flags");
+        // buildSettings(vars.Config["splits"]["area_transitions"], "areas");
+        buildSettings(vars.Config["splits"]["pickaxe_tiers"], "pickaxe");
     }
 
     // This creates a sub-setting of areas under splits and adds the area transitions.
+    settings.CurrentDefaultParent = "splits";
     settings.Add("areas", true, "Area Transitions");
     settings.CurrentDefaultParent = "areas";
     foreach (var transition in vars.areaTransitions) {
@@ -72,19 +81,6 @@ startup
         string settingKey = fromArea + "To" + toArea;
         string settingName = fromArea + " to " + toArea;
         string settingTooltip = "Split on going from the " + fromArea + " area to the " + toArea + " area for the first time.";
-
-        settings.Add(settingKey, true, settingName);
-        settings.SetToolTip(settingKey, settingTooltip);
-    }
-
-    // Handle pickaxe upgrades as well.
-    settings.CurrentDefaultParent = "splits";
-    settings.Add("pickaxe", true, "Pickaxe Upgrades");
-    settings.CurrentDefaultParent = "pickaxe";
-    foreach (var tier in vars.pickaxeTiers) {
-        string settingKey = "Pickaxe" + tier.Key;
-        string settingName = "Pickaxe: " + tier.Key;
-        string settingTooltip = "Split on picking up the " + tier.Key + " pickaxe.";
 
         settings.Add(settingKey, true, settingName);
         settings.SetToolTip(settingKey, settingTooltip);
@@ -112,6 +108,11 @@ init {
         return false;
     }
 
+    // Dictionary for what function to call for each split.
+    vars.splitRules = new Dictionary<string, Func<bool>>();
+
+    // *** HELPER FUNCTIONS BEGIN *** //
+
     // Helper function for buliding pointer maps from the arrays
     Func<JsonNode, DeepPointer> buildPointer = (node) => {
         var arr = node.AsArray();
@@ -119,6 +120,21 @@ init {
         int[] offsets = arr.Skip(1).Select(x => x.GetValue<int>()).ToArray();
         return new DeepPointer(baseAddress, offsets);
     };
+
+    // Function factory to build a split check for boolean flags.
+    Func<string, Func<bool>> buildFlagRule = (key) => () => {
+        // Safely check if the old value is different from the current value.
+        var w = vars.watchers[key];
+        return w.Old != null && w.Current != null && (bool)w.Old != (bool)w.Current;
+    };
+
+    // Function factory to build a split check for pickaxe upgrades.
+    Func<int, Func<bool>> buildPickaxeRule = (targetTier) => () => {
+        var w = vars.watchers["pickaxe_tier"];
+        return w.Old != null && w.Current != null && (byte)w.Old < (byte)w.Current && (byte)w.Current == targetTier;
+    };
+
+    // *** HELPER FUNCTIONS END *** //
 
     // This is the variable used to watch for starting the timer.
     vars.inputDisabled = null;
@@ -129,25 +145,35 @@ init {
         vars.inputDisabled = new MemoryWatcher<bool>(startPointer) { Name = "inputDisabled" };
     }
 
-    // Build the above variables from the single array. I do it this way to once again keep a single
-    // source of truth for the key names and memory addresses.
-    foreach (var split in vars.Config["splits"]["flags"].AsArray()) {
-        string key = split["key"].GetValue<string>();
-        DeepPointer pointerPath = buildPointer(split["pointer_paths"][version]);
-        vars.watchers.Add(new MemoryWatcher<bool>(pointerPath) { Name = key });
-        vars.triggered.Add(key, false);
+    // Build rules and watchers, iterating over each unique key under splits.
+    foreach (var splitsCategory in vars.Config["splits"].AsObject()) {
+        string categoryName = splitsCategory.Key;
+
+        // Iterate over each split within the category
+        foreach (var split in splitsCategory.Value.AsArray()) {
+            string key = split["key"].GetValue<string>();
+            vars.triggered[key] = false;
+
+            if (categoryName == "flags") {
+                DeepPointer pointerPath = buildPointer(split["pointer_paths"][version]);
+                vars.watchers.Add(new MemoryWatcher<bool>(pointerPath) { Name = key });
+                vars.splitRules[key] = buildFlagRule(key);
+            } else if (categoryName == "pickaxe_tiers") {
+                vars.splitRules[key] = buildPickaxeRule(split["tier"].GetValue<int>());
+            }
+        }
+    }
+
+    // Grab the pointers used by multiple splits and add them to watchers.
+    foreach (var sharedPointer in vars.Config["shared_split_pointers"].AsObject()) {
+        DeepPointer pointerPath = buildPointer(sharedPointer.Value[version]);
+        vars.watchers.Add(new MemoryWatcher<byte>(pointerPath) { Name = sharedPointer.Key });
     }
 
     // Add the area transitions to triggered as well, based on the from string + to string.
     foreach (var transition in vars.areaTransitions) {
         string transitionKey = transition.Item1 + "To" + transition.Item2;
         vars.triggered.Add(transitionKey, false);
-    }
-
-    // Add the pickaxe tiers to triggered as well, based on the tier name.
-    foreach (var tier in vars.pickaxeTiers) {
-        string tierKey = "Pickaxe" + tier.Key;
-        vars.triggered.Add(tierKey, false);
     }
 
     // If at some point I have other flags that don't sit inside FirstPersonCharacter, add them manually right here.
@@ -192,16 +218,15 @@ split
     if (version == "Unknown") {
         return false;
     }
-    
-    // Iterate over each watcher and if it's enabled and it's different, then we split.
-    // We also guard against re-setting on the same flag by checking our triggered array.
-    foreach (MemoryWatcher watcher in vars.watchers) {
-        bool watcherEnabled = settings[watcher.Name];
-        bool watcherTriggered = vars.triggered[watcher.Name];
-        bool watcherChanged = watcher.Old != null && watcher.Current != null && (bool)watcher.Old != (bool)watcher.Current;
-        if (watcherEnabled && !watcherTriggered && watcherChanged) {
-            print("[Autosplit] " + watcher.Name);
-            vars.triggered[watcher.Name] = true;
+
+    // Iterate over the split rules built in init.
+    foreach (var rule in vars.splitRules) {
+        string key = rule.Key;
+        Func<bool> evaluateLogic = rule.Value;
+
+        if (settings[key] && !vars.triggered[key] && evaluateLogic()) {
+            print("[Autosplit] Split triggered: " + key);
+            vars.triggered[key] = true;
             return true;
         }
     }
@@ -215,16 +240,6 @@ split
         if (settings[transitionKey] && !vars.triggered[transitionKey] && old.area == vars.areas[fromArea] && current.area == vars.areas[toArea]) {
             print("[Autosplit] " + fromArea + " to " + toArea);
             vars.triggered[transitionKey] = true;
-            return true;
-        }
-    }
-
-    // Pickaxe upgrades are also tracked separately. We loop because we need to respect the settings.
-    foreach (var tier in vars.pickaxeTiers) {
-        string tierKey = "Pickaxe" + tier.Key;
-        if (settings[tierKey] && !vars.triggered[tierKey] && current.pickaxe > old.pickaxe && current.pickaxe == tier.Value) {
-            print("[Autosplit] Pickaxe tier " + tier.Key);
-            vars.triggered[tierKey] = true;
             return true;
         }
     }
