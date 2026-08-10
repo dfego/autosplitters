@@ -11,6 +11,8 @@ start_pointers:
 shared_split_pointers:
   pickaxe_tier:
     v1.2.3349: [0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0xee8]
+  area:
+    v1.2.3349: [0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0x1318]
 
 # Splits and all their relevant data.
 splits:
@@ -130,4 +132,47 @@ splits:
       setting:
         name: Diamond Pickaxe
         desc: Split on getting the diamond pickaxe.
+        default: true
+  area_transitions:
+    - key: MinesToCage
+      from: 1
+      to: 2
+      setting:
+        name: Mines to Cage
+        desc: Split on going from the Mines area to the Cage area for the first time.
+        default: true
+    - key: CageToFactory
+      from: 2
+      to: 3
+      setting:
+        name: Cage to Factory
+        desc: Split on going from the Cage area to the Factory area for the first time.
+        default: true
+    - key: CageToBank
+      from: 2
+      to: 4
+      setting:
+        name: Cage to Bank
+        desc: Split on going from the Cage area to the Bank area for the first time.
+        default: true
+    - key: CageToBeach
+      from: 2
+      to: 5
+      setting:
+        name: Cage to Beach
+        desc: Split on going from the Cage area to the Beach area for the first time.
+        default: true
+    - key: BeachToCastle
+      from: 5
+      to: 8
+      setting:
+        name: Beach to Castle
+        desc: Split on going from the Beach area to the Castle area for the first time.
+        default: true
+    - key: CastleToCage
+      from: 8
+      to: 2
+      setting:
+        name: Castle to Cage
+        desc: Split on going from the Castle area to the Cage area for the first time.
         default: true

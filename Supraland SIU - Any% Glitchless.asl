@@ -1,10 +1,5 @@
 // Current as of version 1.2.3349 - May 6 2024
-state("SupralandSIU-Win64-Shipping")
-{
-    // Most of the setup that normally goes here is done now with MemoryWatchers in init.
-    // For stuff that's different than the rest, we do it here.
-    byte area : 0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0x1318;
-}
+state("SupralandSIU-Win64-Shipping") {}
 
 startup
 {
@@ -17,30 +12,10 @@ startup
         print("[Autosplit] Loaded config file: " + configFilePath);
     }
 
-    // Area transition "constants". I'd make an enum but I don't think I can do that here.
-    vars.areas = new Dictionary<string, byte> {
-        { "Mines", 1 },
-        { "Cage", 2 },
-        { "Factory", 3 },
-        { "Bank", 4 },
-        { "Beach", 5 },
-        { "Castle", 8 },
-    };
-
-    // Area transitions we actually care about, using the strings defined above.
-    vars.areaTransitions = new List<Tuple<string, string>> {
-        Tuple.Create("Mines", "Cage"),
-        Tuple.Create("Cage", "Factory"),
-        Tuple.Create("Cage", "Bank"),
-        Tuple.Create("Cage", "Beach"),
-        Tuple.Create("Beach", "Castle"),
-        Tuple.Create("Castle", "Cage"),
-    };
-
     // Create categories for the settings.
     settings.Add("splits", true, "Splits");
     settings.Add("flags", true, "Flags", "splits");
-    // settings.Add("areas", true, "Area Transitions");
+    settings.Add("areas", true, "Area Transitions");
     settings.Add("pickaxe", true, "Pickaxe Upgrades", "splits");
 
     // Helper delegate to build the settings displayed to the user.
@@ -67,23 +42,8 @@ startup
     // Call the above settings builder for each split category.
     if (vars.Config["splits"] != null) {
         buildSettings(vars.Config["splits"]["flags"], "flags");
-        // buildSettings(vars.Config["splits"]["area_transitions"], "areas");
+        buildSettings(vars.Config["splits"]["area_transitions"], "areas");
         buildSettings(vars.Config["splits"]["pickaxe_tiers"], "pickaxe");
-    }
-
-    // This creates a sub-setting of areas under splits and adds the area transitions.
-    settings.CurrentDefaultParent = "splits";
-    settings.Add("areas", true, "Area Transitions");
-    settings.CurrentDefaultParent = "areas";
-    foreach (var transition in vars.areaTransitions) {
-        string fromArea = transition.Item1;
-        string toArea = transition.Item2;
-        string settingKey = fromArea + "To" + toArea;
-        string settingName = fromArea + " to " + toArea;
-        string settingTooltip = "Split on going from the " + fromArea + " area to the " + toArea + " area for the first time.";
-
-        settings.Add(settingKey, true, settingName);
-        settings.SetToolTip(settingKey, settingTooltip);
     }
 }
 
@@ -134,6 +94,12 @@ init {
         return w.Old != null && w.Current != null && (byte)w.Old < (byte)w.Current && (byte)w.Current == targetTier;
     };
 
+    // Function factory to build a split check for pickaxe upgrades.
+    Func<int, int, Func<bool>> buildAreaTransitionRule = (fromArea, toArea) => () => {
+        var w = vars.watchers["area"];
+        return w.Old != null && w.Current != null && (byte)w.Old == fromArea && (byte)w.Current == toArea;
+    };
+
     // *** HELPER FUNCTIONS END *** //
 
     // This is the variable used to watch for starting the timer.
@@ -160,6 +126,8 @@ init {
                 vars.splitRules[key] = buildFlagRule(key);
             } else if (categoryName == "pickaxe_tiers") {
                 vars.splitRules[key] = buildPickaxeRule(split["tier"].GetValue<int>());
+            } else if (categoryName == "area_transitions") {
+                vars.splitRules[key] = buildAreaTransitionRule(split["from"].GetValue<int>(), split["to"].GetValue<int>());
             }
         }
     }
@@ -169,14 +137,6 @@ init {
         DeepPointer pointerPath = buildPointer(sharedPointer.Value[version]);
         vars.watchers.Add(new MemoryWatcher<byte>(pointerPath) { Name = sharedPointer.Key });
     }
-
-    // Add the area transitions to triggered as well, based on the from string + to string.
-    foreach (var transition in vars.areaTransitions) {
-        string transitionKey = transition.Item1 + "To" + transition.Item2;
-        vars.triggered.Add(transitionKey, false);
-    }
-
-    // If at some point I have other flags that don't sit inside FirstPersonCharacter, add them manually right here.
 }
 
 // Start the auto-splitter when this returns true.
@@ -227,19 +187,6 @@ split
         if (settings[key] && !vars.triggered[key] && evaluateLogic()) {
             print("[Autosplit] Split triggered: " + key);
             vars.triggered[key] = true;
-            return true;
-        }
-    }
-
-    // Area transitions are also tracked separately.
-    // Theoretically I just want the first time we get to certain areas mostly, but I'd rather be explicit.
-    foreach (var transition in vars.areaTransitions) {
-        string fromArea = transition.Item1;
-        string toArea = transition.Item2;
-        string transitionKey = fromArea + "To" + toArea;
-        if (settings[transitionKey] && !vars.triggered[transitionKey] && old.area == vars.areas[fromArea] && current.area == vars.areas[toArea]) {
-            print("[Autosplit] " + fromArea + " to " + toArea);
-            vars.triggered[transitionKey] = true;
             return true;
         }
     }
