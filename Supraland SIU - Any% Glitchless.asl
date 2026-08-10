@@ -50,7 +50,7 @@ startup
     // Add splits from the config file
     settings.Add("splits", true, "Splits");
     settings.CurrentDefaultParent = "splits";
-    foreach (var split in vars.Config["splits"].AsArray()) {
+    foreach (var split in vars.Config["splits"]["flags"].AsArray()) {
         string key = split["key"].GetValue<string>();
         // print("[Autosplit] Adding setting for: " + key);
         if (split["setting"] != null) {
@@ -133,10 +133,10 @@ init {
 
     // Build the above variables from the single array. I do it this way to once again keep a single
     // source of truth for the key names and memory addresses.
-    foreach (var split in vars.Config["splits"].AsArray()) {
+    foreach (var split in vars.Config["splits"]["flags"].AsArray()) {
         string key = split["key"].GetValue<string>();
-        int offset = split["offset"][version].GetValue<int>();
-        vars.watchers.Add(new MemoryWatcher<bool>(new DeepPointer(0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, offset)) { Name = key });
+        DeepPointer pointerPath = buildPointer(split["pointer_paths"][version]);
+        vars.watchers.Add(new MemoryWatcher<bool>(pointerPath) { Name = key });
         vars.collected.Add(key, false);
     }
 
