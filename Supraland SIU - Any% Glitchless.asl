@@ -16,14 +16,33 @@ state("SupralandSIU-Win64-Shipping") {}
 // setting shown to the user in the LiveSplit UI.
 startup
 {
+    vars.scriptEnabled = true;
+    vars.disableReason = "";
+
     // Load the file
     string configFilePath = "Components/Supraland SIU - Any% Glitchless.json";
-    string jsonString = File.ReadAllText(configFilePath);
-    vars.Config = JsonNode.Parse(jsonString);
+    try {
+        string jsonString = File.ReadAllText(configFilePath);
+        vars.Config = JsonNode.Parse(jsonString);
+    } catch (Exception e) {
+        vars.Config = null;
+        print("[Autosplit] Exception while loading config: " + e.Message);
+    }
+
+    // Validate we have a config at all.
     if (vars.Config == null) {
-        print("[Autosplit] Failed to load config file: " + configFilePath);
+        vars.scriptEnabled = false;
+        vars.disableReason = "config load/parse failed";
+        print("[Autosplit] Disabled: " + vars.disableReason + " (" + configFilePath + ")");
     } else {
         print("[Autosplit] Loaded config file: " + configFilePath);
+    }
+
+    // If we don't have splits, nothing else makes sense.
+    if (vars.Config["splits"] == null) {
+        print("[Autosplit] No splits found in config file.");
+        vars.scriptEnabled = false;
+        vars.disableReason = "no splits found at top level of config";
     }
 
     // Helper delegate to build the settings displayed to the user.
@@ -57,7 +76,7 @@ startup
     settings.Add("pickaxe", true, "Pickaxe Upgrades", "splits");
 
     // Call the above settings builder for each split category.
-    if (vars.Config["splits"] != null) {
+    if (vars.Config != null && vars.Config["splits"] != null) {
         buildSettings(vars.Config["splits"]["flags"], "flags");
         buildSettings(vars.Config["splits"]["area_transitions"], "areas");
         buildSettings(vars.Config["splits"]["pickaxe_tiers"], "pickaxe");
@@ -69,6 +88,11 @@ startup
 // the update and split sections use.
 init
 {
+    if (!vars.scriptEnabled) {
+        print("[Autosplit] Disabled: " + vars.disableReason);
+        return false;
+    }
+
     // --- VARIABLES --- //
 
     // General ASL note: anything in vars is shared between sections and persistent across updates and splits.
@@ -95,6 +119,8 @@ init
         print("[Autosplit] Detected game version: " + version);
     } else {
         print("[Autosplit] Unknown game version with memory size: " + memorySize);
+        vars.scriptEnabled = false;
+        vars.disableReason = "unknown game version";
         return false;
     }
 
@@ -160,16 +186,19 @@ init
     }
 
     // Grab the pointers used by multiple splits and add them to watchers.
-    foreach (var sharedPointer in vars.Config["shared_split_pointers"].AsObject()) {
-        DeepPointer pointerPath = buildPointer(sharedPointer.Value[version]);
-        vars.watchers.Add(new MemoryWatcher<byte>(pointerPath) { Name = sharedPointer.Key });
+    if (vars.Config["shared_split_pointers"] != null) {
+        foreach (var sharedPointer in vars.Config["shared_split_pointers"].AsObject()) {
+            DeepPointer pointerPath = buildPointer(sharedPointer.Value[version]);
+            vars.watchers.Add(new MemoryWatcher<byte>(pointerPath) { Name = sharedPointer.Key });
+        }
     }
 }
 
 // Start the auto-splitter when this returns true.
 start
 {
-    if (vars.inputDisabled != null &&
+    if (vars.scriptEnabled &&
+        vars.inputDisabled != null &&
         vars.inputDisabled.Old != null &&
         (bool)vars.inputDisabled.Old &&
         !(bool)vars.inputDisabled.Current) {
@@ -192,7 +221,7 @@ onStart
 // Run before split.
 update
 {
-    if (version != "Unknown") {
+    if (vars.scriptEnabled) {
         if (vars.inputDisabled != null) {
             vars.inputDisabled.Update(game);
         }
@@ -203,7 +232,7 @@ update
 // If this returns true, it splits.
 split
 {
-    if (version == "Unknown") {
+    if (!vars.scriptEnabled) {
         return false;
     }
 
