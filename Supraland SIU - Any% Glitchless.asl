@@ -115,10 +115,8 @@ init {
     // Helper function for buliding pointer maps from the arrays
     Func<JsonNode, DeepPointer> buildPointer = (node) => {
         var arr = node.AsArray();
-
         int baseAddress = arr[0].GetValue<int>();
         int[] offsets = arr.Skip(1).Select(x => x.GetValue<int>()).ToArray();
-
         return new DeepPointer(baseAddress, offsets);
     };
 

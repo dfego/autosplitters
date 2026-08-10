@@ -15,7 +15,19 @@
       ]
     }
   },
-  "shared_split_pointers": null,
+  "shared_split_pointers": {
+    "pickaxe_tier": {
+      "v1.2.3349": [
+        81593544,
+        3368,
+        56,
+        0,
+        48,
+        1432,
+        3816
+      ]
+    }
+  },
   "splits": {
     "flags": [
       {

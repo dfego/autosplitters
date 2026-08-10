@@ -9,6 +9,8 @@ start_pointers:
 
 # Pointers that are used in multiple splits or aren't for a specific split, organized by version.
 shared_split_pointers:
+  pickaxe_tier:
+    v1.2.3349: [0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0xee8]
 
 # Splits and all their relevant data.
 splits:
