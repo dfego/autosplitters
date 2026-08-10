@@ -1,8 +1,22 @@
-// Current as of version 1.2.3349 - May 6 2024
+// Supraland SIU - Any% Glitchless Autosplitter
+// Author: Dan Fego / Delphi
+// Last updated: 2026-08-10
+//
+// This script handles autosplitting for Supraland SIU, and was designed for
+// the Any% Glitchless category. It is driven by a JSON file that I generate
+// alongside this script from a more manageable YAML file. These files contain
+// all the relevant split information for every supported game version.
+//
+// The intention of this separation of script and data is to make it easier to
+// update and maintain over time, with many updates not requiring code changes.
 state("SupralandSIU-Win64-Shipping") {}
 
+// Handle all startup logic that does not require the game to be running.
+// This includes opening the JSON config file, parsing it, and generating the
+// setting shown to the user in the LiveSplit UI.
 startup
 {
+    // Load the file
     string configFilePath = "Components/Supraland SIU - Any% Glitchless.json";
     string jsonString = File.ReadAllText(configFilePath);
     vars.Config = JsonNode.Parse(jsonString);
@@ -11,12 +25,6 @@ startup
     } else {
         print("[Autosplit] Loaded config file: " + configFilePath);
     }
-
-    // Create categories for the settings.
-    settings.Add("splits", true, "Splits");
-    settings.Add("flags", true, "Flags", "splits");
-    settings.Add("areas", true, "Area Transitions");
-    settings.Add("pickaxe", true, "Pickaxe Upgrades", "splits");
 
     // Helper delegate to build the settings displayed to the user.
     Action<JsonNode, string> buildSettings = (categoryNode, parentSettingKey) =>  {
@@ -39,6 +47,15 @@ startup
         }
     };
 
+    // TODO maybe generate the categories from the config file instead of hardcoding
+    // them here, but this is fine for now.
+
+    // Create categories for the settings
+    settings.Add("splits", true, "Splits");
+    settings.Add("flags", true, "Flags", "splits");
+    settings.Add("areas", true, "Area Transitions", "splits");
+    settings.Add("pickaxe", true, "Pickaxe Upgrades", "splits");
+
     // Call the above settings builder for each split category.
     if (vars.Config["splits"] != null) {
         buildSettings(vars.Config["splits"]["flags"], "flags");
@@ -47,7 +64,15 @@ startup
     }
 }
 
-init {
+// Handle all initialization logic that happens when attaching to the game.
+// We do most of the work here, bridging the gap between the configuration and the variables
+// the update and split sections use.
+init
+{
+    // --- VARIABLES --- //
+
+    // General ASL note: anything in vars is shared between sections and persistent across updates and splits.
+
     // Watchers are what we use to check state from the game's memory.
     // Declare this early so update doesn't freak out if it's an Unknown version.
     vars.watchers = new MemoryWatcherList();
@@ -55,6 +80,11 @@ init {
     // This is where we separately track things that have happened to avoid weird issues with cutscenes
     // taking away our items.
     vars.triggered = new Dictionary<string, bool>();
+
+    // Dictionary for what function to call for each split.
+    vars.splitRules = new Dictionary<string, Func<bool>>();
+
+    // --- VERSION CHECKING --- //
 
     // Get memory size of first module for version detection.
     int memorySize = modules.First().ModuleMemorySize;
@@ -68,10 +98,7 @@ init {
         return false;
     }
 
-    // Dictionary for what function to call for each split.
-    vars.splitRules = new Dictionary<string, Func<bool>>();
-
-    // *** HELPER FUNCTIONS BEGIN *** //
+    // --- HELPER FUNCTIONS --- //
 
     // Helper function for buliding pointer maps from the arrays
     Func<JsonNode, DeepPointer> buildPointer = (node) => {
@@ -100,7 +127,7 @@ init {
         return w.Old != null && w.Current != null && (byte)w.Old == fromArea && (byte)w.Current == toArea;
     };
 
-    // *** HELPER FUNCTIONS END *** //
+    // --- MEMORY WATCHERS AND SPLIT RULES --- //
 
     // This is the variable used to watch for starting the timer.
     vars.inputDisabled = null;
@@ -151,8 +178,9 @@ start
     }
 }
 
-// Perform this whenever start (above) returns true.
-onStart {
+// Perform this after start (above) returns true.
+onStart
+{
     // Reset all triggered flags back to false.
     // The list is to avoid an issue with older versions of C# with modifying dictionaries during iteration.
     print("[Autosplit] resetting triggered flags");
@@ -179,7 +207,9 @@ split
         return false;
     }
 
-    // Iterate over the split rules built in init.
+    // Iterate over the split rules built in init. This is simple and concise as a result of all the work
+    // done in init to build the rules and watchers from the data file. Each rule is a function that
+    // returns true if the split should trigger.
     foreach (var rule in vars.splitRules) {
         string key = rule.Key;
         Func<bool> evaluateLogic = rule.Value;

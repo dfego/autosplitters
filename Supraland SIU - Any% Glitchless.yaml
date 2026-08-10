@@ -16,6 +16,7 @@ shared_split_pointers:
 
 # Splits and all their relevant data.
 splits:
+  # Splits mostly for item pickups.
   flags:
     - key: TutorialDone
       pointer_paths:
@@ -108,6 +109,7 @@ splits:
         name: End
         desc: Split on hitting the endgame trigger.
         default: true
+  # Splits for each pickaxe tier upgrade, which can be toggled on or off in the settings.
   pickaxe_tiers:
     - key: PickaxeWood
       tier: 1
@@ -133,6 +135,7 @@ splits:
         name: Diamond Pickaxe
         desc: Split on getting the diamond pickaxe.
         default: true
+  # Splits for specific area transitions, which can be toggled on or off in the settings.
   area_transitions:
     - key: MinesToCage
       from: 1
