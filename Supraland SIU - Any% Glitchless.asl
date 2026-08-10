@@ -98,7 +98,7 @@ init {
 
     // This is where we separately track things that have happened to avoid weird issues with cutscenes
     // taking away our items.
-    vars.collected = new Dictionary<string, bool>();
+    vars.triggered = new Dictionary<string, bool>();
 
     // Get memory size of first module for version detection.
     int memorySize = modules.First().ModuleMemorySize;
@@ -137,19 +137,19 @@ init {
         string key = split["key"].GetValue<string>();
         DeepPointer pointerPath = buildPointer(split["pointer_paths"][version]);
         vars.watchers.Add(new MemoryWatcher<bool>(pointerPath) { Name = key });
-        vars.collected.Add(key, false);
+        vars.triggered.Add(key, false);
     }
 
-    // Add the area transitions to collected as well, based on the from string + to string.
+    // Add the area transitions to triggered as well, based on the from string + to string.
     foreach (var transition in vars.areaTransitions) {
         string transitionKey = transition.Item1 + "To" + transition.Item2;
-        vars.collected.Add(transitionKey, false);
+        vars.triggered.Add(transitionKey, false);
     }
 
-    // Add the pickaxe tiers to collected as well, based on the tier name.
+    // Add the pickaxe tiers to triggered as well, based on the tier name.
     foreach (var tier in vars.pickaxeTiers) {
         string tierKey = "Pickaxe" + tier.Key;
-        vars.collected.Add(tierKey, false);
+        vars.triggered.Add(tierKey, false);
     }
 
     // If at some point I have other flags that don't sit inside FirstPersonCharacter, add them manually right here.
@@ -169,12 +169,11 @@ start
 
 // Perform this whenever start (above) returns true.
 onStart {
-    // Reset all collected flags back to false.
+    // Reset all triggered flags back to false.
     // The list is to avoid an issue with older versions of C# with modifying dictionaries during iteration.
-    print("[Autosplit] resetting collected flags");
-    foreach (string key in new List<string>(vars.collected.Keys)) {
-        vars.collected[key] = false;
-        print("[Autosplit] Collected " + key + ": " + vars.collected[key]);
+    print("[Autosplit] resetting triggered flags");
+    foreach (string key in new List<string>(vars.triggered.Keys)) {
+        vars.triggered[key] = false;
     }
 }
 
@@ -197,11 +196,14 @@ split
     }
     
     // Iterate over each watcher and if it's enabled and it's different, then we split.
-    // We also guard against re-setting on the same flag by checking our collected array.
+    // We also guard against re-setting on the same flag by checking our triggered array.
     foreach (MemoryWatcher watcher in vars.watchers) {
-        if (settings[watcher.Name] && !vars.collected[watcher.Name] && watcher.Old != null && watcher.Current != null && (bool)watcher.Old != (bool)watcher.Current && (bool)watcher.Current) {
+        bool watcherEnabled = settings[watcher.Name];
+        bool watcherTriggered = vars.triggered[watcher.Name];
+        bool watcherChanged = watcher.Old != null && watcher.Current != null && (bool)watcher.Old != (bool)watcher.Current;
+        if (watcherEnabled && !watcherTriggered && watcherChanged) {
             print("[Autosplit] " + watcher.Name);
-            vars.collected[watcher.Name] = true;
+            vars.triggered[watcher.Name] = true;
             return true;
         }
     }
@@ -212,9 +214,9 @@ split
         string fromArea = transition.Item1;
         string toArea = transition.Item2;
         string transitionKey = fromArea + "To" + toArea;
-        if (settings[transitionKey] && !vars.collected[transitionKey] && old.area == vars.areas[fromArea] && current.area == vars.areas[toArea]) {
+        if (settings[transitionKey] && !vars.triggered[transitionKey] && old.area == vars.areas[fromArea] && current.area == vars.areas[toArea]) {
             print("[Autosplit] " + fromArea + " to " + toArea);
-            vars.collected[transitionKey] = true;
+            vars.triggered[transitionKey] = true;
             return true;
         }
     }
@@ -222,9 +224,9 @@ split
     // Pickaxe upgrades are also tracked separately. We loop because we need to respect the settings.
     foreach (var tier in vars.pickaxeTiers) {
         string tierKey = "Pickaxe" + tier.Key;
-        if (settings[tierKey] && !vars.collected[tierKey] && current.pickaxe > old.pickaxe && current.pickaxe == tier.Value) {
+        if (settings[tierKey] && !vars.triggered[tierKey] && current.pickaxe > old.pickaxe && current.pickaxe == tier.Value) {
             print("[Autosplit] Pickaxe tier " + tier.Key);
-            vars.collected[tierKey] = true;
+            vars.triggered[tierKey] = true;
             return true;
         }
     }
