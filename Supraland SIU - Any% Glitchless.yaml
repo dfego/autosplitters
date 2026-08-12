@@ -46,6 +46,13 @@ splits:
         name: Crouch
         desc: Split on picking up the crouch upgrade.
         default: true
+    - key: MinesComplete
+      pointer_paths:
+        v1.2.3349: [0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0x13e8, 0x20, 0x2d0]
+      setting:
+        name: Mines Complete
+        desc: Split on defeating the wizard at the end of the mines.
+        default: true
     - key: SkillHasGrapple
       pointer_paths:
         v1.2.3349: [0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0x7cc]

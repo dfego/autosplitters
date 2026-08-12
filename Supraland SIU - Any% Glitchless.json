@@ -118,6 +118,27 @@
         }
       },
       {
+        "key": "MinesComplete",
+        "pointer_paths": {
+          "v1.2.3349": [
+            81593544,
+            3368,
+            56,
+            0,
+            48,
+            1432,
+            5096,
+            32,
+            720
+          ]
+        },
+        "setting": {
+          "name": "Mines Complete",
+          "desc": "Split on defeating the wizard at the end of the mines.",
+          "default": true
+        }
+      },
+      {
         "key": "SkillHasGrapple",
         "pointer_paths": {
           "v1.2.3349": [
