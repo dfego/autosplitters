@@ -9,6 +9,34 @@
 //
 // The intention of this separation of script and data is to make it easier to
 // update and maintain over time, with many updates not requiring code changes.
+//
+// A bit of documentation on the memory structure...
+//
+// Most pointer paths have these components:
+//   GameEngine -> GameInstance -> LocalPlayers[0] -> PlayerController -> FirstPersonCharacter
+//
+// Notes to self:
+// - lamps
+// - encounters
+// final boss might be festering ghoul
+// - aggro mode might be able to indicate starting?
+// - bFinished might indicate defeat?
+// - finding this memory address might be hard
+// maybe ABP_AbsorbSpawner_Base_C
+// maybe ABP_SpecificArenaSpawner_C
+// "town" floor 3?
+// player has a "spawners" array at 13E8
+// These have isComplete at 2d0 (part of ABP_AbsorbSpawner_Base_C)
+// and bSpawnerActive at 0x371
+// and bPlayerIsInArenaTriggerArea
+// and bPlayerHasEnteredArenaOnce
+// Figuring out which is which might be hard, there's like 30.
+// Okay so let's add, from player:
+// 0x13E8 -> 0x2d0 isComplete
+// 0x13E8 -> 0x377 bPlayerIsInArenaTriggerArea
+// 0x13E8 -> 0x378 bPlayerHasEnteredArenaOnce
+// allll of them? there's 29.
+// maybe create a loop for all of them in code (loL) and then see which ones pop up in the logs as I play?
 state("SupralandSIU-Win64-Shipping") {}
 
 // Handle all startup logic that does not require the game to be running.
@@ -192,6 +220,41 @@ init
             vars.watchers.Add(new MemoryWatcher<byte>(pointerPath) { Name = sharedPointer.Key });
         }
     }
+
+    // --- DEBUGGING ARENAS --- //
+    // Awesome, the ordering seems consistent.
+    // Important ones
+    // - 13: Pre-Bank Arena
+    // - 14: Inside Bank Arena
+    // - 15: Pre-Beach Arena
+    //
+    // Use 378 for ground trigger, or 371 for spawn trigger...
+    // Use 2d0 for completion
+    vars.arenaWatchers = new MemoryWatcherList();
+
+    // In a 64-bit game, pointers are 8 bytes long
+    int pointerSize = 0x8;
+    int[] targetOffsets = new int[] { 0x2d0, 0x371, 0x377, 0x378 }; // isComplete, bSpawnerActive, bPlayerIsInArenaTriggerArea, bPlayerHasEnteredArenaOnce
+
+    for (int i = 0; i < 29; i++) {
+        foreach (int offset in targetOffsets) {
+
+            // The offset inside the TArray buffer to reach this specific pointer
+            int pointerOffsetInArray = i * pointerSize;
+
+            // Your path
+            // -> Offset to the specific pointer (pointerOffsetInArray)
+            // -> Target boolean offset inside the Arena struct (offset)
+            var ptr = new DeepPointer(
+                0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0x13e8,
+                pointerOffsetInArray,
+                offset
+            );
+
+            string watcherName = "Arena_" + i + "_Offset_0x" + offset.ToString("x");
+            vars.arenaWatchers.Add(new MemoryWatcher<bool>(ptr) { Name = watcherName });
+        }
+    }
 }
 
 // Start the auto-splitter when this returns true.
@@ -226,6 +289,15 @@ update
             vars.inputDisabled.Update(game);
         }
         vars.watchers.UpdateAll(game);
+
+        // --- DEBUGGING ARENAS --- //
+        vars.arenaWatchers.UpdateAll(game);
+
+        foreach (MemoryWatcher<bool> watcher in vars.arenaWatchers) {
+            if (watcher.Changed) {
+                print("[Autosplit] Arena watcher changed: " + watcher.Name + " from " + watcher.Old + " to " + watcher.Current);
+            }
+        }
     }
 }
 

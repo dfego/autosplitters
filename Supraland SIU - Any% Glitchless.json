@@ -287,6 +287,90 @@
           "desc": "Split on hitting the endgame trigger.",
           "default": true
         }
+      },
+      {
+        "key": "Pre-Bank Arena Start",
+        "pointer_paths": {
+          "v1.2.3349": [
+            81593544,
+            3368,
+            56,
+            0,
+            48,
+            1432,
+            5096,
+            104,
+            881
+          ]
+        },
+        "setting": {
+          "name": "Pre-Bank Arena Start",
+          "desc": "Split on entering the pre-bank arena for the first time.",
+          "default": true
+        }
+      },
+      {
+        "key": "Pre-Bank Arena Complete",
+        "pointer_paths": {
+          "v1.2.3349": [
+            81593544,
+            3368,
+            56,
+            0,
+            48,
+            1432,
+            5096,
+            104,
+            720
+          ]
+        },
+        "setting": {
+          "name": "Pre-Bank Arena Complete",
+          "desc": "Split on completing the pre-bank arena for the first time.",
+          "default": true
+        }
+      },
+      {
+        "key": "Pre-Beach Arena Start",
+        "pointer_paths": {
+          "v1.2.3349": [
+            81593544,
+            3368,
+            56,
+            0,
+            48,
+            1432,
+            5096,
+            120,
+            881
+          ]
+        },
+        "setting": {
+          "name": "Pre-Beach Arena Start",
+          "desc": "Split on entering the pre-beach arena for the first time.",
+          "default": true
+        }
+      },
+      {
+        "key": "Pre-Beach Arena Complete",
+        "pointer_paths": {
+          "v1.2.3349": [
+            81593544,
+            3368,
+            56,
+            0,
+            48,
+            1432,
+            5096,
+            120,
+            720
+          ]
+        },
+        "setting": {
+          "name": "Pre-Beach Arena Complete",
+          "desc": "Split on completing the pre-beach arena for the first time.",
+          "default": true
+        }
       }
     ],
     "pickaxe_tiers": [
