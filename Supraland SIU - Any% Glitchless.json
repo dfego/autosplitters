@@ -7,8 +7,11 @@
       "v1.2.3349": 80017792
     }
   },
-  "start_pointers": {
-    "input_disabled": {
+  "start": {
+    "key": "input_disabled",
+    "type": "bool_to_value",
+    "value": false,
+    "pointer_paths": {
       "v1.2.3349": [
         81593544,
         3368,
@@ -82,7 +85,8 @@
       "entries": [
         {
           "key": "TutorialDone",
-          "type": "bool_changed",
+          "type": "bool_to_value",
+          "value": true,
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -102,7 +106,8 @@
         },
         {
           "key": "SkillWalkSpeedx2",
-          "type": "bool_changed",
+          "type": "bool_to_value",
+          "value": true,
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -122,7 +127,8 @@
         },
         {
           "key": "JumpHeightPlus",
-          "type": "bool_changed",
+          "type": "bool_to_value",
+          "value": true,
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -142,7 +148,8 @@
         },
         {
           "key": "SkillCrouch",
-          "type": "bool_changed",
+          "type": "bool_to_value",
+          "value": true,
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -162,7 +169,8 @@
         },
         {
           "key": "MinesComplete",
-          "type": "bool_changed",
+          "type": "bool_to_value",
+          "value": true,
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -184,7 +192,8 @@
         },
         {
           "key": "SkillHasGrapple",
-          "type": "bool_changed",
+          "type": "bool_to_value",
+          "value": true,
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -204,7 +213,8 @@
         },
         {
           "key": "SkillHasBelt",
-          "type": "bool_changed",
+          "type": "bool_to_value",
+          "value": true,
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -224,7 +234,8 @@
         },
         {
           "key": "MagnetRepel",
-          "type": "bool_changed",
+          "type": "bool_to_value",
+          "value": true,
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -244,7 +255,8 @@
         },
         {
           "key": "SkillHasElectricGun",
-          "type": "bool_changed",
+          "type": "bool_to_value",
+          "value": true,
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -264,7 +276,8 @@
         },
         {
           "key": "SkillGrappleGold",
-          "type": "bool_changed",
+          "type": "bool_to_value",
+          "value": true,
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -284,7 +297,8 @@
         },
         {
           "key": "Strong",
-          "type": "bool_changed",
+          "type": "bool_to_value",
+          "value": true,
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -304,7 +318,8 @@
         },
         {
           "key": "SkillHasForceBlock",
-          "type": "bool_changed",
+          "type": "bool_to_value",
+          "value": true,
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -324,7 +339,8 @@
         },
         {
           "key": "SkillHasTranslocator",
-          "type": "bool_changed",
+          "type": "bool_to_value",
+          "value": true,
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -344,7 +360,8 @@
         },
         {
           "key": "Endgame",
-          "type": "bool_changed",
+          "type": "bool_to_value",
+          "value": true,
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -364,7 +381,8 @@
         },
         {
           "key": "Pre-Bank Arena Start",
-          "type": "bool_changed",
+          "type": "bool_to_value",
+          "value": true,
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -386,7 +404,8 @@
         },
         {
           "key": "Pre-Bank Arena Complete",
-          "type": "bool_changed",
+          "type": "bool_to_value",
+          "value": true,
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -408,7 +427,8 @@
         },
         {
           "key": "Pre-Beach Arena Start",
-          "type": "bool_changed",
+          "type": "bool_to_value",
+          "value": true,
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -430,7 +450,8 @@
         },
         {
           "key": "Pre-Beach Arena Complete",
-          "type": "bool_changed",
+          "type": "bool_to_value",
+          "value": true,
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -595,7 +616,7 @@
       "entries": [
         {
           "key": "BossFightStart",
-          "type": "dynamic_bool_set",
+          "type": "dynamic_bool_to_true",
           "base_pointer": "boss_enemy",
           "offset": 3208,
           "setting": {
@@ -606,7 +627,7 @@
         },
         {
           "key": "BossFightComplete",
-          "type": "dynamic_bool_set",
+          "type": "dynamic_bool_to_true",
           "base_pointer": "boss_enemy",
           "offset": 3396,
           "setting": {

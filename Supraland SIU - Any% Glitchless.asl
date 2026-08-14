@@ -116,6 +116,7 @@ init
 
     // Dictionary for what function to call for each split.
     vars.splitRules = new Dictionary<string, Func<bool>>();
+    vars.startRule = null;
 
     // Pointers resolved dynamically in update via vars.resolveSmartPath, keyed by dynamic_pointers name.
     vars.dynamicPtrs = new Dictionary<string, IntPtr>();
@@ -165,6 +166,12 @@ init
         return w.Old != null && w.Current != null && (bool)w.Old != (bool)w.Current;
     };
 
+    // Function factory to split when a watched boolean changes to a target value.
+    Func<string, bool, Func<bool>> buildBoolToValueRule = (key, target) => () => {
+        var w = vars.watchers[key];
+        return w.Old != null && w.Current != null && (bool)w.Old != (bool)w.Current && (bool)w.Current == target;
+    };
+
     // Function factory to split when a watched byte increases to a target value.
     Func<string, int, Func<bool>> buildByteIncreasingRule = (watcherKey, target) => () => {
         var w = vars.watchers[watcherKey];
@@ -177,8 +184,8 @@ init
         return w.Old != null && w.Current != null && (byte)w.Old == from && (byte)w.Current == to;
     };
 
-    // Function factory to split when a boolean relative to a dynamic pointer becomes true.
-    Func<string, string, int, Func<bool>> buildDynamicBoolSetRule = (key, basePointer, offset) => () => {
+    // Function factory to split when a boolean relative to a dynamic pointer changes to true.
+    Func<string, string, int, Func<bool>> buildDynamicBoolToTrueRule = (key, basePointer, offset) => () => {
         if (!vars.dynamicPtrs.ContainsKey(basePointer) || (IntPtr)vars.dynamicPtrs[basePointer] == IntPtr.Zero) {
             return false;
         }
@@ -297,13 +304,22 @@ init
 
     // --- MEMORY WATCHERS AND SPLIT RULES --- //
 
-    // This is the variable used to watch for starting the timer.
-    vars.inputDisabled = null;
-    if (vars.Config["start_pointers"] != null &&
-        vars.Config["start_pointers"]["input_disabled"] != null &&
-        vars.Config["start_pointers"]["input_disabled"][version] != null) {
-        DeepPointer startPointer = buildPointer(vars.Config["start_pointers"]["input_disabled"][version]);
-        vars.inputDisabled = new MemoryWatcher<bool>(startPointer) { Name = "inputDisabled" };
+    // Build the timer-start rule.
+    JsonNode start = vars.Config["start"];
+    if (start != null && start["pointer_paths"] != null && start["pointer_paths"][version] != null) {
+        string key = start["key"].GetValue<string>();
+        string type = start["type"].GetValue<string>();
+        DeepPointer pointerPath = buildPointer(start["pointer_paths"][version]);
+        vars.watchers.Add(new MemoryWatcher<bool>(pointerPath) { Name = key });
+
+        switch (type) {
+            case "bool_to_value":
+                vars.startRule = buildBoolToValueRule(key, start["value"].GetValue<bool>());
+                break;
+            default:
+                print("[Autosplit] Unsupported start type: " + type);
+                break;
+        }
     }
 
     // Build rules and watchers from each entry's behavior type.
@@ -319,6 +335,11 @@ init
                     vars.watchers.Add(new MemoryWatcher<bool>(pointerPath) { Name = key });
                     vars.splitRules[key] = buildBoolChangedRule(key);
                     break;
+                case "bool_to_value":
+                    DeepPointer boolToValuePath = buildPointer(split["pointer_paths"][version]);
+                    vars.watchers.Add(new MemoryWatcher<bool>(boolToValuePath) { Name = key });
+                    vars.splitRules[key] = buildBoolToValueRule(key, split["value"].GetValue<bool>());
+                    break;
                 case "byte_increasing":
                     string increasingWatcher = split["watcher"].GetValue<string>();
                     vars.splitRules[key] = buildByteIncreasingRule(increasingWatcher, split["target"].GetValue<int>());
@@ -327,10 +348,10 @@ init
                     string transitionWatcher = split["watcher"].GetValue<string>();
                     vars.splitRules[key] = buildByteTransitionRule(transitionWatcher, split["from"].GetValue<int>(), split["to"].GetValue<int>());
                     break;
-                case "dynamic_bool_set":
+                case "dynamic_bool_to_true":
                     string basePointer = split["base_pointer"].GetValue<string>();
                     int offset = split["offset"].GetValue<int>();
-                    vars.splitRules[key] = buildDynamicBoolSetRule(key, basePointer, offset);
+                    vars.splitRules[key] = buildDynamicBoolToTrueRule(key, basePointer, offset);
                     break;
                 default:
                     print("[Autosplit] Unsupported split type: " + type);
@@ -351,12 +372,8 @@ init
 // Start the auto-splitter when this returns true.
 start
 {
-    if (vars.scriptEnabled &&
-        vars.inputDisabled != null &&
-        vars.inputDisabled.Old != null &&
-        (bool)vars.inputDisabled.Old &&
-        !(bool)vars.inputDisabled.Current) {
-        print("[Autosplit] start (input disabled off)");
+    if (vars.scriptEnabled && vars.startRule != null && vars.startRule()) {
+        print("[Autosplit] start");
         return true;
     }
 }
@@ -384,9 +401,6 @@ update
         return;
     }
 
-    if (vars.inputDisabled != null) {
-        vars.inputDisabled.Update(game);
-    }
     vars.watchers.UpdateAll(game);
 
     // --- DYNAMIC POINTER RESOLUTION --- //
