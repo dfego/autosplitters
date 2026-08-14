@@ -84,7 +84,8 @@ startup
         foreach (var category in splits.AsObject()) {
             string categoryKey = category.Key;
             JsonNode setting = category.Value["setting"];
-            settings.Add(categoryKey, true, setting["name"].GetValue<string>(), "splits");
+            bool settingDefault = setting["default"] != null ? setting["default"].GetValue<bool>() : true;
+            settings.Add(categoryKey, settingDefault, setting["name"].GetValue<string>(), "splits");
             settings.SetToolTip(categoryKey, setting["desc"].GetValue<string>());
             buildSettings(category.Value["entries"], categoryKey);
         }

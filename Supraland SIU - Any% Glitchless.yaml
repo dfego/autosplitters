@@ -37,6 +37,7 @@ splits:
     setting:
       name: Flags
       desc: Splits triggered by player-state flags.
+      default: true
     entries:
     - key: TutorialDone
       pointer_paths:
@@ -169,6 +170,7 @@ splits:
     setting:
       name: Pickaxe Upgrades
       desc: Splits triggered by picking up a new pickaxe tier.
+      default: true
     entries:
     - key: PickaxeWood
       tier: 1
@@ -199,6 +201,7 @@ splits:
     setting:
       name: Area Transitions
       desc: Splits triggered by entering a new major area for the first time.
+      default: true
     entries:
     - key: MinesToCage
       from: 1
@@ -247,6 +250,7 @@ splits:
     setting:
       name: Dynamic Flags
       desc: Splits triggered by flags on dynamically resolved objects.
+      default: true
     entries:
     - key: BossFightStart
       base_pointer: boss_enemy

@@ -76,7 +76,8 @@
     "flags": {
       "setting": {
         "name": "Flags",
-        "desc": "Splits triggered by player-state flags."
+        "desc": "Splits triggered by player-state flags.",
+        "default": true
       },
       "entries": [
         {
@@ -436,7 +437,8 @@
     "pickaxe_tiers": {
       "setting": {
         "name": "Pickaxe Upgrades",
-        "desc": "Splits triggered by picking up a new pickaxe tier."
+        "desc": "Splits triggered by picking up a new pickaxe tier.",
+        "default": true
       },
       "entries": [
         {
@@ -480,7 +482,8 @@
     "area_transitions": {
       "setting": {
         "name": "Area Transitions",
-        "desc": "Splits triggered by entering a new major area for the first time."
+        "desc": "Splits triggered by entering a new major area for the first time.",
+        "default": true
       },
       "entries": [
         {
@@ -548,7 +551,8 @@
     "dynamic_flags": {
       "setting": {
         "name": "Dynamic Flags",
-        "desc": "Splits triggered by flags on dynamically resolved objects."
+        "desc": "Splits triggered by flags on dynamically resolved objects.",
+        "default": true
       },
       "entries": [
         {
