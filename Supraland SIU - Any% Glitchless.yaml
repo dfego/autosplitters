@@ -65,7 +65,7 @@ splits:
       setting:
         name: Crouch
         desc: Split on picking up the crouch upgrade.
-        default: true
+        default: false
     - key: MinesComplete
       pointer_paths:
         v1.2.3349: [0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0x13e8, 0x20, 0x2d0]
@@ -149,7 +149,7 @@ splits:
       setting:
         name: Pre-Bank Arena Complete
         desc: Split on completing the pre-bank arena for the first time.
-        default: true
+        default: false
     - key: Pre-Beach Arena Start
       pointer_paths:
         v1.2.3349: [0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0x13e8, 0x78, 0x371]
@@ -187,13 +187,13 @@ splits:
       setting:
         name: Iron Pickaxe
         desc: Split on getting the iron pickaxe.
-        default: true
+        default: false
     - key: PickaxeDiamond
       tier: 4
       setting:
         name: Diamond Pickaxe
         desc: Split on getting the diamond pickaxe.
-        default: true
+        default: false
   # Splits for specific area transitions, which can be toggled on or off in the settings.
   area_transitions:
     setting:
@@ -206,7 +206,7 @@ splits:
       setting:
         name: Mines to Cage
         desc: Split on going from the Mines area to the Cage area for the first time.
-        default: true
+        default: false
     - key: CageToFactory
       from: 2
       to: 3
@@ -241,7 +241,7 @@ splits:
       setting:
         name: Castle to Cage
         desc: Split on going from the Castle area to the Cage area for the first time.
-        default: true
+        default: false
   # Splits driven by booleans read relative to a dynamic_pointers entry, resolved at runtime.
   dynamic_flags:
     setting:

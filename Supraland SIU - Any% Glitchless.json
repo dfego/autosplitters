@@ -152,7 +152,7 @@
           "setting": {
             "name": "Crouch",
             "desc": "Split on picking up the crouch upgrade.",
-            "default": true
+            "default": false
           }
         },
         {
@@ -386,7 +386,7 @@
           "setting": {
             "name": "Pre-Bank Arena Complete",
             "desc": "Split on completing the pre-bank arena for the first time.",
-            "default": true
+            "default": false
           }
         },
         {
@@ -463,7 +463,7 @@
           "setting": {
             "name": "Iron Pickaxe",
             "desc": "Split on getting the iron pickaxe.",
-            "default": true
+            "default": false
           }
         },
         {
@@ -472,7 +472,7 @@
           "setting": {
             "name": "Diamond Pickaxe",
             "desc": "Split on getting the diamond pickaxe.",
-            "default": true
+            "default": false
           }
         }
       ]
@@ -490,7 +490,7 @@
           "setting": {
             "name": "Mines to Cage",
             "desc": "Split on going from the Mines area to the Cage area for the first time.",
-            "default": true
+            "default": false
           }
         },
         {
@@ -540,7 +540,7 @@
           "setting": {
             "name": "Castle to Cage",
             "desc": "Split on going from the Castle area to the Cage area for the first time.",
-            "default": true
+            "default": false
           }
         }
       ]
