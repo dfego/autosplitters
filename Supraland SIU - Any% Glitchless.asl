@@ -37,7 +37,19 @@
 // 0x13E8 -> 0x378 bPlayerHasEnteredArenaOnce
 // allll of them? there's 29.
 // maybe create a loop for all of them in code (loL) and then see which ones pop up in the logs as I play?
-state("SupralandSIU-Win64-Shipping") {}
+// GWorld = 0x4dd3de0
+// UWorld -> PersistentLevel (0x30) -> Actors (0x98)
+// omg finalbossquest...
+// 0x12ce2b1e010
+// okay, so finalbossquest can seemingly be via dlc2complete > levels[X] -- but X not consistent?
+// like it literally has at 0x230 FinalBossQuest_4_ExecuteUberGraph_DLC2_FinallBoss_RefProperty that goes to it?
+// but how to find which element in the array...
+// What about DLC2_FinalBoss_C?
+// GNames 0x4C4F980
+state("SupralandSIU-Win64-Shipping")
+{
+    // int bool : 0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0xd09;
+}
 
 // Handle all startup logic that does not require the game to be running.
 // This includes opening the JSON config file, parsing it, and generating the
@@ -136,6 +148,14 @@ init
     // Dictionary for what function to call for each split.
     vars.splitRules = new Dictionary<string, Func<bool>>();
 
+    // Resolved dynamically in update by walking GWorld -> Levels -> Actors; null until found.
+    vars.liveQuestPtr = IntPtr.Zero;
+    vars.bossLevelPtr = IntPtr.Zero;
+    vars.questScanTick = 0;
+    vars.statusScanTick = 0;
+    vars.questStarted = null;
+    vars.questComplete = null;
+
     // --- VERSION CHECKING --- //
 
     // Get memory size of first module for version detection.
@@ -151,6 +171,13 @@ init
         vars.disableReason = "unknown game version";
         return false;
     }
+
+    // --- STATIC ADDRESSES --- //
+
+    // Module-relative static addresses for GWorld and the UE4.27 FNamePool (GNames).
+    IntPtr moduleBase = modules.First().BaseAddress;
+    vars.gWorldAddress = moduleBase + 0x4dd3de0;
+    vars.fNamePoolBase = moduleBase + 0x4c4f980;
 
     // --- HELPER FUNCTIONS --- //
 
@@ -180,6 +207,43 @@ init
         var w = vars.watchers["area"];
         return w.Old != null && w.Current != null && (byte)w.Old == fromArea && (byte)w.Current == toArea;
     };
+
+    // Resolves a UObject's FName by decoding the UE4.27 FNamePool entry it points to.
+    vars.getObjectName = (Func<IntPtr, string>)((IntPtr obj) => {
+        if (obj == IntPtr.Zero) {
+            return null;
+        }
+
+        try {
+            int comparisonIndex = game.ReadValue<int>(obj + 0x18);
+            int block = comparisonIndex >> 16;
+            int offset = comparisonIndex & 0xffff;
+
+            IntPtr fNamePoolBase = (IntPtr)vars.fNamePoolBase;
+            IntPtr chunkBase = game.ReadPointer(fNamePoolBase + 0x10 + (block * 0x8));
+            if (chunkBase == IntPtr.Zero) {
+                return null;
+            }
+
+            IntPtr entryAddress = chunkBase + (offset * 2);
+            ushort header = game.ReadValue<ushort>(entryAddress);
+            bool isWide = (header & 1) != 0;
+            int length = (header >> 6) & 0x3ff;
+            if (length <= 0 || length > 1024) {
+                return null;
+            }
+
+            if (isWide) {
+                byte[] raw = game.ReadBytes(entryAddress + 2, length * 2);
+                return System.Text.Encoding.Unicode.GetString(raw);
+            } else {
+                byte[] raw = game.ReadBytes(entryAddress + 2, length);
+                return System.Text.Encoding.ASCII.GetString(raw);
+            }
+        } catch {
+            return null;
+        }
+    });
 
     // --- MEMORY WATCHERS AND SPLIT RULES --- //
 
@@ -279,6 +343,14 @@ onStart
     foreach (string key in new List<string>(vars.triggered.Keys)) {
         vars.triggered[key] = false;
     }
+
+    // Reset final boss quest discovery/status so a fresh run doesn't reuse pointers from a previous attempt.
+    vars.liveQuestPtr = IntPtr.Zero;
+    vars.bossLevelPtr = IntPtr.Zero;
+    vars.questScanTick = 0;
+    vars.statusScanTick = 0;
+    vars.questStarted = null;
+    vars.questComplete = null;
 }
 
 // Run before split.
@@ -293,9 +365,77 @@ update
         // --- DEBUGGING ARENAS --- //
         vars.arenaWatchers.UpdateAll(game);
 
-        foreach (MemoryWatcher<bool> watcher in vars.arenaWatchers) {
-            if (watcher.Changed) {
-                print("[Autosplit] Arena watcher changed: " + watcher.Name + " from " + watcher.Old + " to " + watcher.Current);
+        // --- FINAL BOSS QUEST DISCOVERY --- //
+        // Only scan once; the level/actor never move once resolved for the session.
+        // Throttled to once every 120 ticks (~a couple seconds) so failed attempts don't spam the log or burn CPU.
+        if ((IntPtr)vars.liveQuestPtr == IntPtr.Zero) {
+            vars.questScanTick = (int)vars.questScanTick + 1;
+
+            if ((int)vars.questScanTick % 120 == 0) {
+                try {
+                    IntPtr gWorld = game.ReadPointer((IntPtr)vars.gWorldAddress);
+                    IntPtr persistentLevel = gWorld != IntPtr.Zero ? game.ReadPointer(gWorld + 0x30) : IntPtr.Zero;
+
+                    if (persistentLevel != IntPtr.Zero) {
+                        // Find the DLC2 final boss level's LevelScriptActor.
+                        // Levels is a TArray<ULevel*> on UWorld itself, not on PersistentLevel/ULevel.
+                        if ((IntPtr)vars.bossLevelPtr == IntPtr.Zero) {
+                            IntPtr levelsData = game.ReadPointer(gWorld + 0x138);
+                            int levelsCount = game.ReadValue<int>(gWorld + 0x140);
+
+                            for (int i = 0; i < levelsCount; i++) {
+                                IntPtr levelPtr = game.ReadPointer(levelsData + i * 0x8);
+                                IntPtr levelScriptActor = game.ReadPointer(levelPtr + 0xe8);
+                                string levelName = vars.getObjectName(levelScriptActor);
+
+                                if (levelName != null && levelName.StartsWith("DLC2_FinalBoss_C")) {
+                                    vars.bossLevelPtr = levelScriptActor;
+                                    print("[Autosplit] Found boss level: " + levelName);
+                                    break;
+                                }
+                            }
+                        }
+
+                        // The LevelScriptActor holds a direct reference to the quest object at 0x230.
+                        if ((IntPtr)vars.bossLevelPtr != IntPtr.Zero) {
+                            IntPtr questPtr = game.ReadPointer((IntPtr)vars.bossLevelPtr + 0x230);
+                            string questName = vars.getObjectName(questPtr);
+                            print("[Autosplit] [quest scan] questPtr=" + questPtr.ToString("x") + " questName=" + (questName ?? "(null)"));
+
+                            if (questPtr != IntPtr.Zero && questName != null && questName.StartsWith("FinalBossQuest", StringComparison.OrdinalIgnoreCase)) {
+                                vars.liveQuestPtr = questPtr;
+                                print("[Autosplit] Found final boss quest: " + questName);
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    print("[Autosplit] Exception while resolving final boss quest: " + e.Message);
+                }
+            }
+        }
+
+        // --- FINAL BOSS QUEST STATUS (DEBUGGING) --- //
+        if ((IntPtr)vars.liveQuestPtr != IntPtr.Zero) {
+            vars.statusScanTick = (int)vars.statusScanTick + 1;
+
+            try {
+                IntPtr bossEnemyPtr = game.ReadPointer((IntPtr)vars.liveQuestPtr + 0x298);
+
+                if (bossEnemyPtr != IntPtr.Zero) {
+                    bool bAgroMode = game.ReadValue<bool>(bossEnemyPtr + 0xc88);
+                    if (vars.questStarted == null || (bool)vars.questStarted != bAgroMode) {
+                        print("[Autosplit] bAgroMode changed: " + vars.questStarted + " -> " + bAgroMode);
+                        vars.questStarted = bAgroMode;
+                    }
+
+                    bool bFinished = game.ReadValue<bool>(bossEnemyPtr + 0xd44);
+                    if (vars.questComplete == null || (bool)vars.questComplete != bFinished) {
+                        print("[Autosplit] bFinished changed: " + vars.questComplete + " -> " + bFinished);
+                        vars.questComplete = bFinished;
+                    }
+                }
+            } catch (Exception e) {
+                print("[Autosplit] Exception while reading quest status: " + e.Message);
             }
         }
     }
