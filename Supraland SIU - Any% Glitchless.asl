@@ -10,46 +10,17 @@
 // The intention of this separation of script and data is to make it easier to
 // update and maintain over time, with many updates not requiring code changes.
 //
+// I've also gone a bit overboard and built a dynamic pointer resolution system
+// that can traverse the game's memory graph to find actors and objects that
+// aren't always present at the same memory address, which is useful for things
+// like the final boss quest. This is all driven by the JSON configuration file,
+// so it can be updated without touching the ASL code. In theory, anyway.
+//
 // A bit of documentation on the memory structure...
 //
 // Most pointer paths have these components:
 //   GameEngine -> GameInstance -> LocalPlayers[0] -> PlayerController -> FirstPersonCharacter
-//
-// Notes to self:
-// - lamps
-// - encounters
-// final boss might be festering ghoul
-// - aggro mode might be able to indicate starting?
-// - bFinished might indicate defeat?
-// - finding this memory address might be hard
-// maybe ABP_AbsorbSpawner_Base_C
-// maybe ABP_SpecificArenaSpawner_C
-// "town" floor 3?
-// player has a "spawners" array at 13E8
-// These have isComplete at 2d0 (part of ABP_AbsorbSpawner_Base_C)
-// and bSpawnerActive at 0x371
-// and bPlayerIsInArenaTriggerArea
-// and bPlayerHasEnteredArenaOnce
-// Figuring out which is which might be hard, there's like 30.
-// Okay so let's add, from player:
-// 0x13E8 -> 0x2d0 isComplete
-// 0x13E8 -> 0x377 bPlayerIsInArenaTriggerArea
-// 0x13E8 -> 0x378 bPlayerHasEnteredArenaOnce
-// allll of them? there's 29.
-// maybe create a loop for all of them in code (loL) and then see which ones pop up in the logs as I play?
-// GWorld = 0x4dd3de0
-// UWorld -> PersistentLevel (0x30) -> Actors (0x98)
-// omg finalbossquest...
-// 0x12ce2b1e010
-// okay, so finalbossquest can seemingly be via dlc2complete > levels[X] -- but X not consistent?
-// like it literally has at 0x230 FinalBossQuest_4_ExecuteUberGraph_DLC2_FinallBoss_RefProperty that goes to it?
-// but how to find which element in the array...
-// What about DLC2_FinalBoss_C?
-// GNames 0x4C4F980
-state("SupralandSIU-Win64-Shipping")
-{
-    // int bool : 0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0xd09;
-}
+state("SupralandSIU-Win64-Shipping") {}
 
 // Handle all startup logic that does not require the game to be running.
 // This includes opening the JSON config file, parsing it, and generating the
@@ -114,12 +85,14 @@ startup
     settings.Add("flags", true, "Flags", "splits");
     settings.Add("areas", true, "Area Transitions", "splits");
     settings.Add("pickaxe", true, "Pickaxe Upgrades", "splits");
+    settings.Add("dynamic_flags", true, "Dynamic Flags", "splits");
 
     // Call the above settings builder for each split category.
     if (vars.Config != null && vars.Config["splits"] != null) {
         buildSettings(vars.Config["splits"]["flags"], "flags");
         buildSettings(vars.Config["splits"]["area_transitions"], "areas");
         buildSettings(vars.Config["splits"]["pickaxe_tiers"], "pickaxe");
+        buildSettings(vars.Config["splits"]["dynamic_flags"], "dynamic_flags");
     }
 }
 
@@ -148,13 +121,13 @@ init
     // Dictionary for what function to call for each split.
     vars.splitRules = new Dictionary<string, Func<bool>>();
 
-    // Resolved dynamically in update by walking GWorld -> Levels -> Actors; null until found.
-    vars.liveQuestPtr = IntPtr.Zero;
-    vars.bossLevelPtr = IntPtr.Zero;
-    vars.questScanTick = 0;
-    vars.statusScanTick = 0;
-    vars.questStarted = null;
-    vars.questComplete = null;
+    // Pointers resolved dynamically in update via vars.resolveSmartPath, keyed by dynamic_pointers name.
+    vars.dynamicPtrs = new Dictionary<string, IntPtr>();
+    vars.dynamicOldStates = new Dictionary<string, bool>();
+    vars.dynamicScanTick = 0;
+
+    // Keep track of any invalid step types in the dynamic pointer resolution so we don't spam the log.
+    vars.invalidSmartPathTypes = new HashSet<string>();
 
     // --- VERSION CHECKING --- //
 
@@ -174,10 +147,10 @@ init
 
     // --- STATIC ADDRESSES --- //
 
-    // Module-relative static addresses for GWorld and the UE4.27 FNamePool (GNames).
+    // Module-relative static address for the UE4.27 FNamePool (GNames).
     IntPtr moduleBase = modules.First().BaseAddress;
-    vars.gWorldAddress = moduleBase + 0x4dd3de0;
-    vars.fNamePoolBase = moduleBase + 0x4c4f980;
+    int fNamePoolOffset = vars.Config["global_offsets"]["f_name_pool"][version].GetValue<int>();
+    IntPtr fNamePoolBase = moduleBase + fNamePoolOffset;
 
     // --- HELPER FUNCTIONS --- //
 
@@ -208,6 +181,22 @@ init
         return w.Old != null && w.Current != null && (byte)w.Old == fromArea && (byte)w.Current == toArea;
     };
 
+    // Function factory to build a split check for a boolean flag relative to a dynamically resolved pointer.
+    Func<string, string, int, Func<bool>> buildDynamicFlagRule = (key, basePointer, offset) => () => {
+        if (!vars.dynamicPtrs.ContainsKey(basePointer) || (IntPtr)vars.dynamicPtrs[basePointer] == IntPtr.Zero) {
+            return false;
+        }
+
+        try {
+            bool currentValue = game.ReadValue<bool>((IntPtr)vars.dynamicPtrs[basePointer] + offset);
+            bool oldValue = vars.dynamicOldStates.ContainsKey(key) && vars.dynamicOldStates[key];
+            vars.dynamicOldStates[key] = currentValue;
+            return !oldValue && currentValue;
+        } catch {
+            return false;
+        }
+    };
+
     // Resolves a UObject's FName by decoding the UE4.27 FNamePool entry it points to.
     vars.getObjectName = (Func<IntPtr, string>)((IntPtr obj) => {
         if (obj == IntPtr.Zero) {
@@ -219,7 +208,6 @@ init
             int block = comparisonIndex >> 16;
             int offset = comparisonIndex & 0xffff;
 
-            IntPtr fNamePoolBase = (IntPtr)vars.fNamePoolBase;
             IntPtr chunkBase = game.ReadPointer(fNamePoolBase + 0x10 + (block * 0x8));
             if (chunkBase == IntPtr.Zero) {
                 return null;
@@ -243,6 +231,72 @@ init
         } catch {
             return null;
         }
+    });
+
+    // Generic graph-traversal state machine driven by a JSON path sequence, so dynamic actor
+    // discovery (e.g. the final boss quest) doesn't need hardcoded nested loops per target.
+    // Each step is either:
+    //   { "type": "module_pointer", "value": <int> }
+    //     currentAddress = *(moduleBase + value)
+    //   { "type": "offset", "value": <int> }
+    //     currentAddress = *(currentAddress + value)
+    //   { "type": "tarray_search", "array_offset": <int>, "name_pointer_offset": <int>, "target_name": <string> }
+    //     Treats currentAddress + array_offset as a TArray<T*> (data ptr at +0x0, count at +0x8),
+    //     resolves each element's name via the pointer at name_pointer_offset, and sets
+    //     currentAddress to the matching element (or IntPtr.Zero if nothing matches).
+    vars.resolveSmartPath = (Func<JsonNode, IntPtr>)((JsonNode pathSequence) => {
+        IntPtr currentAddress = IntPtr.Zero;
+
+        foreach (var step in pathSequence.AsArray()) {
+            string stepType = step["type"].GetValue<string>();
+
+            if (stepType == "module_pointer") {
+                int value = step["value"].GetValue<int>();
+                currentAddress = game.ReadPointer(moduleBase + value);
+            } else if (stepType == "offset") {
+                if (currentAddress == IntPtr.Zero) {
+                    return IntPtr.Zero;
+                }
+
+                int value = step["value"].GetValue<int>();
+                currentAddress = game.ReadPointer(currentAddress + value);
+            } else if (stepType == "tarray_search") {
+                if (currentAddress == IntPtr.Zero) {
+                    return IntPtr.Zero;
+                }
+
+                // Navigate a TArray<T*> structure, searching for an element whose name matches the target_name.
+                // Offset 0 is the data pointer, offset 8 is the count.
+                int arrayOffset = step["array_offset"].GetValue<int>();
+                int namePointerOffset = step["name_pointer_offset"].GetValue<int>();
+                string targetName = step["target_name"].GetValue<string>();
+
+                IntPtr arrayBase = currentAddress + arrayOffset;
+                IntPtr arrayData = game.ReadPointer(arrayBase);
+                int count = game.ReadValue<int>(arrayBase + 0x8);
+
+                IntPtr found = IntPtr.Zero;
+                for (int i = 0; i < count; i++) {
+                    IntPtr itemAddress = game.ReadPointer(arrayData + i * 0x8);
+                    IntPtr namePointer = game.ReadPointer(itemAddress + namePointerOffset);
+                    string itemName = vars.getObjectName(namePointer);
+
+                    if (targetName.Equals(itemName, StringComparison.Ordinal)) {
+                        found = itemAddress;
+                        break;
+                    }
+                }
+
+                currentAddress = found;
+            } else {
+                if (vars.invalidSmartPathTypes.Add(stepType)) {
+                    print("[Autosplit] Invalid dynamic pointer step type: " + stepType);
+                }
+                return IntPtr.Zero;
+            }
+        }
+
+        return currentAddress;
     });
 
     // --- MEMORY WATCHERS AND SPLIT RULES --- //
@@ -273,6 +327,10 @@ init
                 vars.splitRules[key] = buildPickaxeRule(split["tier"].GetValue<int>());
             } else if (categoryName == "area_transitions") {
                 vars.splitRules[key] = buildAreaTransitionRule(split["from"].GetValue<int>(), split["to"].GetValue<int>());
+            } else if (categoryName == "dynamic_flags") {
+                string basePointer = split["base_pointer"].GetValue<string>();
+                int offset = split["offset"].GetValue<int>();
+                vars.splitRules[key] = buildDynamicFlagRule(key, basePointer, offset);
             }
         }
     }
@@ -344,99 +402,58 @@ onStart
         vars.triggered[key] = false;
     }
 
-    // Reset final boss quest discovery/status so a fresh run doesn't reuse pointers from a previous attempt.
-    vars.liveQuestPtr = IntPtr.Zero;
-    vars.bossLevelPtr = IntPtr.Zero;
-    vars.questScanTick = 0;
-    vars.statusScanTick = 0;
-    vars.questStarted = null;
-    vars.questComplete = null;
+    // Reset dynamically resolved pointers so a fresh run doesn't reuse pointers from a previous attempt.
+    vars.dynamicPtrs.Clear();
+    vars.dynamicOldStates.Clear();
+    vars.dynamicScanTick = 0;
 }
 
 // Run before split.
 update
 {
-    if (vars.scriptEnabled) {
-        if (vars.inputDisabled != null) {
-            vars.inputDisabled.Update(game);
-        }
-        vars.watchers.UpdateAll(game);
+    if (!vars.scriptEnabled) {
+        return;
+    }
 
-        // --- DEBUGGING ARENAS --- //
-        vars.arenaWatchers.UpdateAll(game);
+    if (vars.inputDisabled != null) {
+        vars.inputDisabled.Update(game);
+    }
+    vars.watchers.UpdateAll(game);
 
-        // --- FINAL BOSS QUEST DISCOVERY --- //
-        // Only scan once; the level/actor never move once resolved for the session.
-        // Throttled to once every 120 ticks (~a couple seconds) so failed attempts don't spam the log or burn CPU.
-        if ((IntPtr)vars.liveQuestPtr == IntPtr.Zero) {
-            vars.questScanTick = (int)vars.questScanTick + 1;
+    // --- DEBUGGING ARENAS --- //
+    vars.arenaWatchers.UpdateAll(game);
 
-            if ((int)vars.questScanTick % 120 == 0) {
-                try {
-                    IntPtr gWorld = game.ReadPointer((IntPtr)vars.gWorldAddress);
-                    IntPtr persistentLevel = gWorld != IntPtr.Zero ? game.ReadPointer(gWorld + 0x30) : IntPtr.Zero;
+    // --- DYNAMIC POINTER RESOLUTION --- //
+    // Throttled to once every 60 ticks (~a second) so failed attempts don't spam the log or burn CPU.
+    // Once a pointer resolves it's left alone; it's assumed stable for the rest of the run.
+    vars.dynamicScanTick = (int)vars.dynamicScanTick + 1;
 
-                    if (persistentLevel != IntPtr.Zero) {
-                        // Find the DLC2 final boss level's LevelScriptActor.
-                        // Levels is a TArray<ULevel*> on UWorld itself, not on PersistentLevel/ULevel.
-                        if ((IntPtr)vars.bossLevelPtr == IntPtr.Zero) {
-                            IntPtr levelsData = game.ReadPointer(gWorld + 0x138);
-                            int levelsCount = game.ReadValue<int>(gWorld + 0x140);
+    JsonNode dynamicPointers = vars.Config["dynamic_pointers"];
+    if (dynamicPointers == null || (int)vars.dynamicScanTick % 60 != 0) {
+        return;
+    }
 
-                            for (int i = 0; i < levelsCount; i++) {
-                                IntPtr levelPtr = game.ReadPointer(levelsData + i * 0x8);
-                                IntPtr levelScriptActor = game.ReadPointer(levelPtr + 0xe8);
-                                string levelName = vars.getObjectName(levelScriptActor);
+    // Iterate over each dynamic pointer in the config, resolving them if they haven't been resolved yet.
+    // This is done in update because the things dynamic paths are needed for aren't always available on start/init.
+    foreach (var dynamicPointer in dynamicPointers.AsObject()) {
+        string key = dynamicPointer.Key;
 
-                                if (levelName != null && levelName.StartsWith("DLC2_FinalBoss_C")) {
-                                    vars.bossLevelPtr = levelScriptActor;
-                                    print("[Autosplit] Found boss level: " + levelName);
-                                    break;
-                                }
-                            }
-                        }
-
-                        // The LevelScriptActor holds a direct reference to the quest object at 0x230.
-                        if ((IntPtr)vars.bossLevelPtr != IntPtr.Zero) {
-                            IntPtr questPtr = game.ReadPointer((IntPtr)vars.bossLevelPtr + 0x230);
-                            string questName = vars.getObjectName(questPtr);
-                            print("[Autosplit] [quest scan] questPtr=" + questPtr.ToString("x") + " questName=" + (questName ?? "(null)"));
-
-                            if (questPtr != IntPtr.Zero && questName != null && questName.StartsWith("FinalBossQuest", StringComparison.OrdinalIgnoreCase)) {
-                                vars.liveQuestPtr = questPtr;
-                                print("[Autosplit] Found final boss quest: " + questName);
-                            }
-                        }
-                    }
-                } catch (Exception e) {
-                    print("[Autosplit] Exception while resolving final boss quest: " + e.Message);
-                }
-            }
+        // Skip if we've already resolved this pointer.
+        if (vars.dynamicPtrs.ContainsKey(key)) {
+            continue;
         }
 
-        // --- FINAL BOSS QUEST STATUS (DEBUGGING) --- //
-        if ((IntPtr)vars.liveQuestPtr != IntPtr.Zero) {
-            vars.statusScanTick = (int)vars.statusScanTick + 1;
-
-            try {
-                IntPtr bossEnemyPtr = game.ReadPointer((IntPtr)vars.liveQuestPtr + 0x298);
-
-                if (bossEnemyPtr != IntPtr.Zero) {
-                    bool bAgroMode = game.ReadValue<bool>(bossEnemyPtr + 0xc88);
-                    if (vars.questStarted == null || (bool)vars.questStarted != bAgroMode) {
-                        print("[Autosplit] bAgroMode changed: " + vars.questStarted + " -> " + bAgroMode);
-                        vars.questStarted = bAgroMode;
-                    }
-
-                    bool bFinished = game.ReadValue<bool>(bossEnemyPtr + 0xd44);
-                    if (vars.questComplete == null || (bool)vars.questComplete != bFinished) {
-                        print("[Autosplit] bFinished changed: " + vars.questComplete + " -> " + bFinished);
-                        vars.questComplete = bFinished;
-                    }
-                }
-            } catch (Exception e) {
-                print("[Autosplit] Exception while reading quest status: " + e.Message);
+        try {
+            JsonNode pathSequence = dynamicPointer.Value[version];
+            IntPtr resolved = pathSequence != null ? vars.resolveSmartPath(pathSequence) : IntPtr.Zero;
+            if (resolved == IntPtr.Zero) {
+                continue;
             }
+
+            vars.dynamicPtrs[key] = resolved;
+            print("[Autosplit] Resolved dynamic pointer '" + key + "' at " + resolved.ToString("x"));
+        } catch (Exception e) {
+            print("[Autosplit] Exception while resolving dynamic pointer '" + key + "': " + e.Message);
         }
     }
 }

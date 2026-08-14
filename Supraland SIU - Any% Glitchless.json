@@ -2,6 +2,11 @@
   "versions": {
     "86704128": "v1.2.3349"
   },
+  "global_offsets": {
+    "f_name_pool": {
+      "v1.2.3349": 80017792
+    }
+  },
   "start_pointers": {
     "input_disabled": {
       "v1.2.3349": [
@@ -12,6 +17,34 @@
         48,
         1408,
         920
+      ]
+    }
+  },
+  "dynamic_pointers": {
+    "boss_enemy": {
+      "v1.2.3349": [
+        {
+          "type": "module_pointer",
+          "value": 81608160
+        },
+        {
+          "type": "tarray_search",
+          "array_offset": 312,
+          "name_pointer_offset": 232,
+          "target_name": "DLC2_FinalBoss_C"
+        },
+        {
+          "type": "offset",
+          "value": 232
+        },
+        {
+          "type": "offset",
+          "value": 560
+        },
+        {
+          "type": "offset",
+          "value": 664
+        }
       ]
     }
   },
@@ -490,6 +523,28 @@
         "setting": {
           "name": "Castle to Cage",
           "desc": "Split on going from the Castle area to the Cage area for the first time.",
+          "default": true
+        }
+      }
+    ],
+    "dynamic_flags": [
+      {
+        "key": "BossFightStart",
+        "base_pointer": "boss_enemy",
+        "offset": 3208,
+        "setting": {
+          "name": "Boss Fight Start",
+          "desc": "Split on the final boss entering aggro mode.",
+          "default": true
+        }
+      },
+      {
+        "key": "BossFightComplete",
+        "base_pointer": "boss_enemy",
+        "offset": 3396,
+        "setting": {
+          "name": "Boss Fight Complete",
+          "desc": "Split on defeating the final boss.",
           "default": true
         }
       }

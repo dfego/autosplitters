@@ -1,11 +1,27 @@
 # Game versions based on ModuleMemorySize (in decimal bytes)
 versions:
-  "86704128": "v1.2.3349"
+  "86704128": v1.2.3349
+
+# Module-relative offsets for UE globals used outside normal split pointer paths.
+global_offsets:
+  f_name_pool:
+    v1.2.3349: 0x4c4f980
 
 # Pointers related to starting the timer, which aren't used once the run has started.
 start_pointers:
   input_disabled:
     v1.2.3349: [0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x580, 0x398]
+
+# Generic pointer paths resolved dynamically at runtime via vars.resolveSmartPath, keyed by name.
+# boss_enemy: GWorld -> Levels TArray (search for DLC2_FinalBoss_C)
+dynamic_pointers:
+  boss_enemy:
+    v1.2.3349:
+      - { type: module_pointer, value: 0x4dd3de0 }
+      - { type: tarray_search, array_offset: 0x138, name_pointer_offset: 0xe8, target_name: DLC2_FinalBoss_C }
+      - { type: offset, value: 0xe8 }  # LevelScriptActor
+      - { type: offset, value: 0x230 } # FinalBossQuest
+      - { type: offset, value: 0x298 } # boss enemy actor
 
 # Pointers that are used in multiple splits or aren't for a specific split, organized by version.
 shared_split_pointers:
@@ -213,4 +229,20 @@ splits:
       setting:
         name: Castle to Cage
         desc: Split on going from the Castle area to the Cage area for the first time.
+        default: true
+  # Splits driven by booleans read relative to a dynamic_pointers entry, resolved at runtime.
+  dynamic_flags:
+    - key: BossFightStart
+      base_pointer: boss_enemy
+      offset: 0xc88
+      setting:
+        name: Boss Fight Start
+        desc: Split on the final boss entering aggro mode.
+        default: true
+    - key: BossFightComplete
+      base_pointer: boss_enemy
+      offset: 0xd44
+      setting:
+        name: Boss Fight Complete
+        desc: Split on defeating the final boss.
         default: true
