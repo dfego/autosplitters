@@ -57,13 +57,11 @@ startup
     }
 
     // Helper delegate to build the settings displayed to the user.
-    Action<JsonNode, string> buildSettings = (categoryNode, parentSettingKey) =>  {
-        if (categoryNode != null) {
-            // Ensure all the following settings are children of the parentSettingKey in the UI.
+    Action<JsonNode, string> buildSettings = (entries, parentSettingKey) =>  {
+        if (entries != null) {
             settings.CurrentDefaultParent = parentSettingKey;
 
-            // Iterate over each split
-            foreach (var split in categoryNode.AsArray()) {
+            foreach (var split in entries.AsArray()) {
                 string key = split["key"].GetValue<string>();
                 var settingNode = split["setting"];
                 if (settingNode != null) {
@@ -77,22 +75,19 @@ startup
         }
     };
 
-    // TODO maybe generate the categories from the config file instead of hardcoding
-    // them here, but this is fine for now.
-
-    // Create categories for the settings
+    // Create the top-level settings category.
     settings.Add("splits", true, "Splits");
-    settings.Add("flags", true, "Flags", "splits");
-    settings.Add("areas", true, "Area Transitions", "splits");
-    settings.Add("pickaxe", true, "Pickaxe Upgrades", "splits");
-    settings.Add("dynamic_flags", true, "Dynamic Flags", "splits");
 
-    // Call the above settings builder for each split category.
-    if (vars.Config != null && vars.Config["splits"] != null) {
-        buildSettings(vars.Config["splits"]["flags"], "flags");
-        buildSettings(vars.Config["splits"]["area_transitions"], "areas");
-        buildSettings(vars.Config["splits"]["pickaxe_tiers"], "pickaxe");
-        buildSettings(vars.Config["splits"]["dynamic_flags"], "dynamic_flags");
+    // Build each category and its child split settings from the same config object.
+    JsonNode splits = vars.Config["splits"];
+    if (splits != null) {
+        foreach (var category in splits.AsObject()) {
+            string categoryKey = category.Key;
+            JsonNode setting = category.Value["setting"];
+            settings.Add(categoryKey, true, setting["name"].GetValue<string>(), "splits");
+            settings.SetToolTip(categoryKey, setting["desc"].GetValue<string>());
+            buildSettings(category.Value["entries"], categoryKey);
+        }
     }
 }
 
@@ -311,11 +306,11 @@ init
     }
 
     // Build rules and watchers, iterating over each unique key under splits.
-    foreach (var splitsCategory in vars.Config["splits"].AsObject()) {
-        string categoryName = splitsCategory.Key;
+    foreach (var category in vars.Config["splits"].AsObject()) {
+        string categoryName = category.Key;
 
         // Iterate over each split within the category
-        foreach (var split in splitsCategory.Value.AsArray()) {
+        foreach (var split in category.Value["entries"].AsArray()) {
             string key = split["key"].GetValue<string>();
             vars.triggered[key] = false;
 

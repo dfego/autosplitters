@@ -34,6 +34,10 @@ shared_split_pointers:
 splits:
   # Splits mostly for item pickups.
   flags:
+    setting:
+      name: Flags
+      desc: Splits triggered by player-state flags.
+    entries:
     - key: TutorialDone
       pointer_paths:
         v1.2.3349: [0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0x7bb]
@@ -162,6 +166,10 @@ splits:
         default: true
   # Splits for each pickaxe tier upgrade, which can be toggled on or off in the settings.
   pickaxe_tiers:
+    setting:
+      name: Pickaxe Upgrades
+      desc: Splits triggered by picking up a new pickaxe tier.
+    entries:
     - key: PickaxeWood
       tier: 1
       setting:
@@ -188,6 +196,10 @@ splits:
         default: true
   # Splits for specific area transitions, which can be toggled on or off in the settings.
   area_transitions:
+    setting:
+      name: Area Transitions
+      desc: Splits triggered by entering a new major area for the first time.
+    entries:
     - key: MinesToCage
       from: 1
       to: 2
@@ -232,6 +244,10 @@ splits:
         default: true
   # Splits driven by booleans read relative to a dynamic_pointers entry, resolved at runtime.
   dynamic_flags:
+    setting:
+      name: Dynamic Flags
+      desc: Splits triggered by flags on dynamically resolved objects.
+    entries:
     - key: BossFightStart
       base_pointer: boss_enemy
       offset: 0xc88
