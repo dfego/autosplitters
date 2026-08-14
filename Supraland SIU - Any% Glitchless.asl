@@ -315,18 +315,26 @@ init
             string key = split["key"].GetValue<string>();
             vars.triggered[key] = false;
 
-            if (categoryName == "flags") {
-                DeepPointer pointerPath = buildPointer(split["pointer_paths"][version]);
-                vars.watchers.Add(new MemoryWatcher<bool>(pointerPath) { Name = key });
-                vars.splitRules[key] = buildFlagRule(key);
-            } else if (categoryName == "pickaxe_tiers") {
-                vars.splitRules[key] = buildPickaxeRule(split["tier"].GetValue<int>());
-            } else if (categoryName == "area_transitions") {
-                vars.splitRules[key] = buildAreaTransitionRule(split["from"].GetValue<int>(), split["to"].GetValue<int>());
-            } else if (categoryName == "dynamic_flags") {
-                string basePointer = split["base_pointer"].GetValue<string>();
-                int offset = split["offset"].GetValue<int>();
-                vars.splitRules[key] = buildDynamicFlagRule(key, basePointer, offset);
+            switch (categoryName) {
+                case "flags":
+                    DeepPointer pointerPath = buildPointer(split["pointer_paths"][version]);
+                    vars.watchers.Add(new MemoryWatcher<bool>(pointerPath) { Name = key });
+                    vars.splitRules[key] = buildFlagRule(key);
+                    break;
+                case "pickaxe_tiers":
+                    vars.splitRules[key] = buildPickaxeRule(split["tier"].GetValue<int>());
+                    break;
+                case "area_transitions":
+                    vars.splitRules[key] = buildAreaTransitionRule(split["from"].GetValue<int>(), split["to"].GetValue<int>());
+                    break;
+                case "dynamic_flags":
+                    string basePointer = split["base_pointer"].GetValue<string>();
+                    int offset = split["offset"].GetValue<int>();
+                    vars.splitRules[key] = buildDynamicFlagRule(key, basePointer, offset);
+                    break;
+                default:
+                    print("[Autosplit] Unsupported split category: " + categoryName);
+                    break;
             }
         }
     }
