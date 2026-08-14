@@ -82,6 +82,7 @@
       "entries": [
         {
           "key": "TutorialDone",
+          "type": "bool_changed",
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -101,6 +102,7 @@
         },
         {
           "key": "SkillWalkSpeedx2",
+          "type": "bool_changed",
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -120,6 +122,7 @@
         },
         {
           "key": "JumpHeightPlus",
+          "type": "bool_changed",
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -139,6 +142,7 @@
         },
         {
           "key": "SkillCrouch",
+          "type": "bool_changed",
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -158,6 +162,7 @@
         },
         {
           "key": "MinesComplete",
+          "type": "bool_changed",
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -179,6 +184,7 @@
         },
         {
           "key": "SkillHasGrapple",
+          "type": "bool_changed",
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -198,6 +204,7 @@
         },
         {
           "key": "SkillHasBelt",
+          "type": "bool_changed",
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -217,6 +224,7 @@
         },
         {
           "key": "MagnetRepel",
+          "type": "bool_changed",
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -236,6 +244,7 @@
         },
         {
           "key": "SkillHasElectricGun",
+          "type": "bool_changed",
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -255,6 +264,7 @@
         },
         {
           "key": "SkillGrappleGold",
+          "type": "bool_changed",
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -274,6 +284,7 @@
         },
         {
           "key": "Strong",
+          "type": "bool_changed",
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -293,6 +304,7 @@
         },
         {
           "key": "SkillHasForceBlock",
+          "type": "bool_changed",
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -312,6 +324,7 @@
         },
         {
           "key": "SkillHasTranslocator",
+          "type": "bool_changed",
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -331,6 +344,7 @@
         },
         {
           "key": "Endgame",
+          "type": "bool_changed",
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -350,6 +364,7 @@
         },
         {
           "key": "Pre-Bank Arena Start",
+          "type": "bool_changed",
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -371,6 +386,7 @@
         },
         {
           "key": "Pre-Bank Arena Complete",
+          "type": "bool_changed",
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -392,6 +408,7 @@
         },
         {
           "key": "Pre-Beach Arena Start",
+          "type": "bool_changed",
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -413,6 +430,7 @@
         },
         {
           "key": "Pre-Beach Arena Complete",
+          "type": "bool_changed",
           "pointer_paths": {
             "v1.2.3349": [
               81593544,
@@ -443,7 +461,9 @@
       "entries": [
         {
           "key": "PickaxeWood",
-          "tier": 1,
+          "type": "byte_increasing",
+          "watcher": "pickaxe_tier",
+          "target": 1,
           "setting": {
             "name": "Wooden Pickaxe",
             "desc": "Split on getting the wooden pickaxe.",
@@ -452,7 +472,9 @@
         },
         {
           "key": "PickaxeStone",
-          "tier": 2,
+          "type": "byte_increasing",
+          "watcher": "pickaxe_tier",
+          "target": 2,
           "setting": {
             "name": "Stone Pickaxe",
             "desc": "Split on getting the stone pickaxe.",
@@ -461,7 +483,9 @@
         },
         {
           "key": "PickaxeIron",
-          "tier": 3,
+          "type": "byte_increasing",
+          "watcher": "pickaxe_tier",
+          "target": 3,
           "setting": {
             "name": "Iron Pickaxe",
             "desc": "Split on getting the iron pickaxe.",
@@ -470,7 +494,9 @@
         },
         {
           "key": "PickaxeDiamond",
-          "tier": 4,
+          "type": "byte_increasing",
+          "watcher": "pickaxe_tier",
+          "target": 4,
           "setting": {
             "name": "Diamond Pickaxe",
             "desc": "Split on getting the diamond pickaxe.",
@@ -488,6 +514,8 @@
       "entries": [
         {
           "key": "MinesToCage",
+          "type": "byte_transition",
+          "watcher": "area",
           "from": 1,
           "to": 2,
           "setting": {
@@ -498,6 +526,8 @@
         },
         {
           "key": "CageToFactory",
+          "type": "byte_transition",
+          "watcher": "area",
           "from": 2,
           "to": 3,
           "setting": {
@@ -508,6 +538,8 @@
         },
         {
           "key": "CageToBank",
+          "type": "byte_transition",
+          "watcher": "area",
           "from": 2,
           "to": 4,
           "setting": {
@@ -518,6 +550,8 @@
         },
         {
           "key": "CageToBeach",
+          "type": "byte_transition",
+          "watcher": "area",
           "from": 2,
           "to": 5,
           "setting": {
@@ -528,6 +562,8 @@
         },
         {
           "key": "BeachToCastle",
+          "type": "byte_transition",
+          "watcher": "area",
           "from": 5,
           "to": 8,
           "setting": {
@@ -538,6 +574,8 @@
         },
         {
           "key": "CastleToCage",
+          "type": "byte_transition",
+          "watcher": "area",
           "from": 8,
           "to": 2,
           "setting": {
@@ -557,6 +595,7 @@
       "entries": [
         {
           "key": "BossFightStart",
+          "type": "dynamic_bool_set",
           "base_pointer": "boss_enemy",
           "offset": 3208,
           "setting": {
@@ -567,6 +606,7 @@
         },
         {
           "key": "BossFightComplete",
+          "type": "dynamic_bool_set",
           "base_pointer": "boss_enemy",
           "offset": 3396,
           "setting": {

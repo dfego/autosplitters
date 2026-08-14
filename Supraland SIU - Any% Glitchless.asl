@@ -158,27 +158,27 @@ init
         return new DeepPointer(baseAddress, offsets);
     };
 
-    // Function factory to build a split check for boolean flags.
-    Func<string, Func<bool>> buildFlagRule = (key) => () => {
+    // Function factory to split when a watched boolean changes.
+    Func<string, Func<bool>> buildBoolChangedRule = (key) => () => {
         // Safely check if the old value is different from the current value.
         var w = vars.watchers[key];
         return w.Old != null && w.Current != null && (bool)w.Old != (bool)w.Current;
     };
 
-    // Function factory to build a split check for pickaxe upgrades.
-    Func<int, Func<bool>> buildPickaxeRule = (targetTier) => () => {
-        var w = vars.watchers["pickaxe_tier"];
-        return w.Old != null && w.Current != null && (byte)w.Old < (byte)w.Current && (byte)w.Current == targetTier;
+    // Function factory to split when a watched byte increases to a target value.
+    Func<string, int, Func<bool>> buildByteIncreasingRule = (watcherKey, target) => () => {
+        var w = vars.watchers[watcherKey];
+        return w.Old != null && w.Current != null && (byte)w.Old < (byte)w.Current && (byte)w.Current == target;
     };
 
-    // Function factory to build a split check for pickaxe upgrades.
-    Func<int, int, Func<bool>> buildAreaTransitionRule = (fromArea, toArea) => () => {
-        var w = vars.watchers["area"];
-        return w.Old != null && w.Current != null && (byte)w.Old == fromArea && (byte)w.Current == toArea;
+    // Function factory to split when a watched byte changes between two values.
+    Func<string, int, int, Func<bool>> buildByteTransitionRule = (watcherKey, from, to) => () => {
+        var w = vars.watchers[watcherKey];
+        return w.Old != null && w.Current != null && (byte)w.Old == from && (byte)w.Current == to;
     };
 
-    // Function factory to build a split check for a boolean flag relative to a dynamically resolved pointer.
-    Func<string, string, int, Func<bool>> buildDynamicFlagRule = (key, basePointer, offset) => () => {
+    // Function factory to split when a boolean relative to a dynamic pointer becomes true.
+    Func<string, string, int, Func<bool>> buildDynamicBoolSetRule = (key, basePointer, offset) => () => {
         if (!vars.dynamicPtrs.ContainsKey(basePointer) || (IntPtr)vars.dynamicPtrs[basePointer] == IntPtr.Zero) {
             return false;
         }
@@ -306,34 +306,34 @@ init
         vars.inputDisabled = new MemoryWatcher<bool>(startPointer) { Name = "inputDisabled" };
     }
 
-    // Build rules and watchers, iterating over each unique key under splits.
+    // Build rules and watchers from each entry's behavior type.
     foreach (var category in vars.Config["splits"].AsObject()) {
-        string categoryName = category.Key;
-
-        // Iterate over each split within the category
         foreach (var split in category.Value["entries"].AsArray()) {
             string key = split["key"].GetValue<string>();
+            string type = split["type"].GetValue<string>();
             vars.triggered[key] = false;
 
-            switch (categoryName) {
-                case "flags":
+            switch (type) {
+                case "bool_changed":
                     DeepPointer pointerPath = buildPointer(split["pointer_paths"][version]);
                     vars.watchers.Add(new MemoryWatcher<bool>(pointerPath) { Name = key });
-                    vars.splitRules[key] = buildFlagRule(key);
+                    vars.splitRules[key] = buildBoolChangedRule(key);
                     break;
-                case "pickaxe_tiers":
-                    vars.splitRules[key] = buildPickaxeRule(split["tier"].GetValue<int>());
+                case "byte_increasing":
+                    string increasingWatcher = split["watcher"].GetValue<string>();
+                    vars.splitRules[key] = buildByteIncreasingRule(increasingWatcher, split["target"].GetValue<int>());
                     break;
-                case "area_transitions":
-                    vars.splitRules[key] = buildAreaTransitionRule(split["from"].GetValue<int>(), split["to"].GetValue<int>());
+                case "byte_transition":
+                    string transitionWatcher = split["watcher"].GetValue<string>();
+                    vars.splitRules[key] = buildByteTransitionRule(transitionWatcher, split["from"].GetValue<int>(), split["to"].GetValue<int>());
                     break;
-                case "dynamic_flags":
+                case "dynamic_bool_set":
                     string basePointer = split["base_pointer"].GetValue<string>();
                     int offset = split["offset"].GetValue<int>();
-                    vars.splitRules[key] = buildDynamicFlagRule(key, basePointer, offset);
+                    vars.splitRules[key] = buildDynamicBoolSetRule(key, basePointer, offset);
                     break;
                 default:
-                    print("[Autosplit] Unsupported split category: " + categoryName);
+                    print("[Autosplit] Unsupported split type: " + type);
                     break;
             }
         }
