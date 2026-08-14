@@ -346,41 +346,6 @@ init
             vars.watchers.Add(new MemoryWatcher<byte>(pointerPath) { Name = sharedPointer.Key });
         }
     }
-
-    // --- DEBUGGING ARENAS --- //
-    // Awesome, the ordering seems consistent.
-    // Important ones
-    // - 13: Pre-Bank Arena
-    // - 14: Inside Bank Arena
-    // - 15: Pre-Beach Arena
-    //
-    // Use 378 for ground trigger, or 371 for spawn trigger...
-    // Use 2d0 for completion
-    vars.arenaWatchers = new MemoryWatcherList();
-
-    // In a 64-bit game, pointers are 8 bytes long
-    int pointerSize = 0x8;
-    int[] targetOffsets = new int[] { 0x2d0, 0x371, 0x377, 0x378 }; // isComplete, bSpawnerActive, bPlayerIsInArenaTriggerArea, bPlayerHasEnteredArenaOnce
-
-    for (int i = 0; i < 29; i++) {
-        foreach (int offset in targetOffsets) {
-
-            // The offset inside the TArray buffer to reach this specific pointer
-            int pointerOffsetInArray = i * pointerSize;
-
-            // Your path
-            // -> Offset to the specific pointer (pointerOffsetInArray)
-            // -> Target boolean offset inside the Arena struct (offset)
-            var ptr = new DeepPointer(
-                0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0x13e8,
-                pointerOffsetInArray,
-                offset
-            );
-
-            string watcherName = "Arena_" + i + "_Offset_0x" + offset.ToString("x");
-            vars.arenaWatchers.Add(new MemoryWatcher<bool>(ptr) { Name = watcherName });
-        }
-    }
 }
 
 // Start the auto-splitter when this returns true.
@@ -423,9 +388,6 @@ update
         vars.inputDisabled.Update(game);
     }
     vars.watchers.UpdateAll(game);
-
-    // --- DEBUGGING ARENAS --- //
-    vars.arenaWatchers.UpdateAll(game);
 
     // --- DYNAMIC POINTER RESOLUTION --- //
     // Throttled to once every 60 ticks (~a second) so failed attempts don't spam the log or burn CPU.
