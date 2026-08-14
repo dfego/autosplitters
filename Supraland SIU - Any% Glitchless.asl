@@ -47,13 +47,13 @@ startup
         print("[Autosplit] Disabled: " + vars.disableReason + " (" + configFilePath + ")");
     } else {
         print("[Autosplit] Loaded config file: " + configFilePath);
-    }
 
-    // If we don't have splits, nothing else makes sense.
-    if (vars.Config["splits"] == null) {
-        print("[Autosplit] No splits found in config file.");
-        vars.scriptEnabled = false;
-        vars.disableReason = "no splits found at top level of config";
+        // If we don't have splits, nothing else makes sense.
+        if (vars.Config["splits"] == null) {
+            print("[Autosplit] No splits found in config file.");
+            vars.scriptEnabled = false;
+            vars.disableReason = "no splits found at top level of config";
+        }
     }
 
     // Helper delegate to build the settings displayed to the user.
@@ -79,7 +79,7 @@ startup
     settings.Add("splits", true, "Splits");
 
     // Build each category and its child split settings from the same config object.
-    JsonNode splits = vars.Config["splits"];
+    JsonNode splits = vars.Config != null ? vars.Config["splits"] : null;
     if (splits != null) {
         foreach (var category in splits.AsObject()) {
             string categoryKey = category.Key;
