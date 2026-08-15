@@ -2,8 +2,16 @@
   "versions": {
     "86704128": "v1.2.3349"
   },
-  "start_pointers": {
-    "input_disabled": {
+  "global_offsets": {
+    "f_name_pool": {
+      "v1.2.3349": 80017792
+    }
+  },
+  "start": {
+    "key": "input_disabled",
+    "type": "bool_to_value",
+    "value": false,
+    "pointer_paths": {
       "v1.2.3349": [
         81593544,
         3368,
@@ -12,6 +20,34 @@
         48,
         1408,
         920
+      ]
+    }
+  },
+  "dynamic_pointers": {
+    "boss_enemy": {
+      "v1.2.3349": [
+        {
+          "type": "module_pointer",
+          "value": 81608160
+        },
+        {
+          "type": "tarray_search",
+          "array_offset": 312,
+          "name_pointer_offset": 232,
+          "target_name": "DLC2_FinalBoss_C"
+        },
+        {
+          "type": "offset",
+          "value": 232
+        },
+        {
+          "type": "offset",
+          "value": 560
+        },
+        {
+          "type": "offset",
+          "value": 664
+        }
       ]
     }
   },
@@ -40,354 +76,567 @@
     }
   },
   "splits": {
-    "flags": [
-      {
-        "key": "TutorialDone",
-        "pointer_paths": {
-          "v1.2.3349": [
-            81593544,
-            3368,
-            56,
-            0,
-            48,
-            1432,
-            1979
-          ]
+    "flags": {
+      "setting": {
+        "name": "Flags",
+        "desc": "Splits triggered by player-state flags.",
+        "default": true
+      },
+      "entries": [
+        {
+          "key": "TutorialDone",
+          "type": "bool_to_value",
+          "value": true,
+          "pointer_paths": {
+            "v1.2.3349": [
+              81593544,
+              3368,
+              56,
+              0,
+              48,
+              1432,
+              1979
+            ]
+          },
+          "setting": {
+            "name": "Down the Pipe",
+            "desc": "Split on going down the pipe during the intro cutscene.",
+            "default": true
+          }
         },
-        "setting": {
-          "name": "Down the Pipe",
-          "desc": "Split on going down the pipe during the intro cutscene.",
-          "default": true
-        }
-      },
-      {
-        "key": "SkillWalkSpeedx2",
-        "pointer_paths": {
-          "v1.2.3349": [
-            81593544,
-            3368,
-            56,
-            0,
-            48,
-            1432,
-            1986
-          ]
+        {
+          "key": "SkillWalkSpeedx2",
+          "type": "bool_to_value",
+          "value": true,
+          "pointer_paths": {
+            "v1.2.3349": [
+              81593544,
+              3368,
+              56,
+              0,
+              48,
+              1432,
+              1986
+            ]
+          },
+          "setting": {
+            "name": "Speed Upgrade",
+            "desc": "Split on picking up the speed upgrade in the bunker.",
+            "default": true
+          }
         },
-        "setting": {
-          "name": "Speed Upgrade",
-          "desc": "Split on picking up the speed upgrade in the bunker.",
-          "default": true
-        }
-      },
-      {
-        "key": "JumpHeightPlus",
-        "pointer_paths": {
-          "v1.2.3349": [
-            81593544,
-            3368,
-            56,
-            0,
-            48,
-            1432,
-            2632
-          ]
+        {
+          "key": "JumpHeightPlus",
+          "type": "bool_to_value",
+          "value": true,
+          "pointer_paths": {
+            "v1.2.3349": [
+              81593544,
+              3368,
+              56,
+              0,
+              48,
+              1432,
+              2632
+            ]
+          },
+          "setting": {
+            "name": "High Jump",
+            "desc": "Split on picking up the high jump upgrade.",
+            "default": true
+          }
         },
-        "setting": {
-          "name": "High Jump",
-          "desc": "Split on picking up the high jump upgrade.",
-          "default": true
-        }
-      },
-      {
-        "key": "SkillCrouch",
-        "pointer_paths": {
-          "v1.2.3349": [
-            81593544,
-            3368,
-            56,
-            0,
-            48,
-            1432,
-            4889
-          ]
+        {
+          "key": "SkillCrouch",
+          "type": "bool_to_value",
+          "value": true,
+          "pointer_paths": {
+            "v1.2.3349": [
+              81593544,
+              3368,
+              56,
+              0,
+              48,
+              1432,
+              4889
+            ]
+          },
+          "setting": {
+            "name": "Crouch",
+            "desc": "Split on picking up the crouch upgrade.",
+            "default": false
+          }
         },
-        "setting": {
-          "name": "Crouch",
-          "desc": "Split on picking up the crouch upgrade.",
-          "default": true
-        }
-      },
-      {
-        "key": "SkillHasGrapple",
-        "pointer_paths": {
-          "v1.2.3349": [
-            81593544,
-            3368,
-            56,
-            0,
-            48,
-            1432,
-            1996
-          ]
+        {
+          "key": "MinesComplete",
+          "type": "bool_to_value",
+          "value": true,
+          "pointer_paths": {
+            "v1.2.3349": [
+              81593544,
+              3368,
+              56,
+              0,
+              48,
+              1432,
+              5096,
+              32,
+              720
+            ]
+          },
+          "setting": {
+            "name": "Mines Complete",
+            "desc": "Split on defeating the wizard at the end of the mines.",
+            "default": true
+          }
         },
-        "setting": {
-          "name": "Grapple Beam",
-          "desc": "Split on picking up the grapple beam.",
-          "default": true
-        }
-      },
-      {
-        "key": "SkillHasBelt",
-        "pointer_paths": {
-          "v1.2.3349": [
-            81593544,
-            3368,
-            56,
-            0,
-            48,
-            1432,
-            1993
-          ]
+        {
+          "key": "SkillHasGrapple",
+          "type": "bool_to_value",
+          "value": true,
+          "pointer_paths": {
+            "v1.2.3349": [
+              81593544,
+              3368,
+              56,
+              0,
+              48,
+              1432,
+              1996
+            ]
+          },
+          "setting": {
+            "name": "Grapple Beam",
+            "desc": "Split on picking up the grapple beam.",
+            "default": true
+          }
         },
-        "setting": {
-          "name": "Magnet Belt",
-          "desc": "Split on picking up the magnet belt.",
-          "default": true
-        }
-      },
-      {
-        "key": "MagnetRepel",
-        "pointer_paths": {
-          "v1.2.3349": [
-            81593544,
-            3368,
-            56,
-            0,
-            48,
-            1432,
-            3779
-          ]
+        {
+          "key": "SkillHasBelt",
+          "type": "bool_to_value",
+          "value": true,
+          "pointer_paths": {
+            "v1.2.3349": [
+              81593544,
+              3368,
+              56,
+              0,
+              48,
+              1432,
+              1993
+            ]
+          },
+          "setting": {
+            "name": "Magnet Belt",
+            "desc": "Split on picking up the magnet belt.",
+            "default": true
+          }
         },
-        "setting": {
-          "name": "Magnet Belt Repel",
-          "desc": "Split on picking up the magnet belt repel upgrade.",
-          "default": true
-        }
-      },
-      {
-        "key": "SkillHasElectricGun",
-        "pointer_paths": {
-          "v1.2.3349": [
-            81593544,
-            3368,
-            56,
-            0,
-            48,
-            1432,
-            4608
-          ]
+        {
+          "key": "MagnetRepel",
+          "type": "bool_to_value",
+          "value": true,
+          "pointer_paths": {
+            "v1.2.3349": [
+              81593544,
+              3368,
+              56,
+              0,
+              48,
+              1432,
+              3779
+            ]
+          },
+          "setting": {
+            "name": "Magnet Belt Repel",
+            "desc": "Split on picking up the magnet belt repel upgrade.",
+            "default": true
+          }
         },
-        "setting": {
-          "name": "Electric Gun",
-          "desc": "Split on picking up the electric gun.",
-          "default": true
-        }
-      },
-      {
-        "key": "SkillGrappleGold",
-        "pointer_paths": {
-          "v1.2.3349": [
-            81593544,
-            3368,
-            56,
-            0,
-            48,
-            1432,
-            3720
-          ]
+        {
+          "key": "SkillHasElectricGun",
+          "type": "bool_to_value",
+          "value": true,
+          "pointer_paths": {
+            "v1.2.3349": [
+              81593544,
+              3368,
+              56,
+              0,
+              48,
+              1432,
+              4608
+            ]
+          },
+          "setting": {
+            "name": "Electric Gun",
+            "desc": "Split on picking up the electric gun.",
+            "default": true
+          }
         },
-        "setting": {
-          "name": "Grapple Beam Gold Upgrade",
-          "desc": "Split on picking up the grapple beam gold upgrade.",
-          "default": true
-        }
-      },
-      {
-        "key": "Strong",
-        "pointer_paths": {
-          "v1.2.3349": [
-            81593544,
-            3368,
-            56,
-            0,
-            48,
-            1432,
-            3714
-          ]
+        {
+          "key": "SkillGrappleGold",
+          "type": "bool_to_value",
+          "value": true,
+          "pointer_paths": {
+            "v1.2.3349": [
+              81593544,
+              3368,
+              56,
+              0,
+              48,
+              1432,
+              3720
+            ]
+          },
+          "setting": {
+            "name": "Grapple Beam Gold Upgrade",
+            "desc": "Split on picking up the grapple beam gold upgrade.",
+            "default": true
+          }
         },
-        "setting": {
-          "name": "Strength",
-          "desc": "Split on getting strong in the gym.",
-          "default": true
-        }
-      },
-      {
-        "key": "SkillHasForceBlock",
-        "pointer_paths": {
-          "v1.2.3349": [
-            81593544,
-            3368,
-            56,
-            0,
-            48,
-            1432,
-            1987
-          ]
+        {
+          "key": "Strong",
+          "type": "bool_to_value",
+          "value": true,
+          "pointer_paths": {
+            "v1.2.3349": [
+              81593544,
+              3368,
+              56,
+              0,
+              48,
+              1432,
+              3714
+            ]
+          },
+          "setting": {
+            "name": "Strength",
+            "desc": "Split on getting strong in the gym.",
+            "default": true
+          }
         },
-        "setting": {
-          "name": "Force Cube",
-          "desc": "Split on getting the Force Cube.",
-          "default": true
-        }
-      },
-      {
-        "key": "SkillHasTranslocator",
-        "pointer_paths": {
-          "v1.2.3349": [
-            81593544,
-            3368,
-            56,
-            0,
-            48,
-            1432,
-            1998
-          ]
+        {
+          "key": "SkillHasForceBlock",
+          "type": "bool_to_value",
+          "value": true,
+          "pointer_paths": {
+            "v1.2.3349": [
+              81593544,
+              3368,
+              56,
+              0,
+              48,
+              1432,
+              1987
+            ]
+          },
+          "setting": {
+            "name": "Force Cube",
+            "desc": "Split on getting the Force Cube.",
+            "default": true
+          }
         },
-        "setting": {
-          "name": "Translocator",
-          "desc": "Split on getting the Translocator.",
-          "default": true
-        }
-      },
-      {
-        "key": "Endgame",
-        "pointer_paths": {
-          "v1.2.3349": [
-            81593544,
-            3368,
-            56,
-            0,
-            48,
-            1432,
-            3756
-          ]
+        {
+          "key": "SkillHasTranslocator",
+          "type": "bool_to_value",
+          "value": true,
+          "pointer_paths": {
+            "v1.2.3349": [
+              81593544,
+              3368,
+              56,
+              0,
+              48,
+              1432,
+              1998
+            ]
+          },
+          "setting": {
+            "name": "Translocator",
+            "desc": "Split on getting the Translocator.",
+            "default": true
+          }
         },
-        "setting": {
-          "name": "End",
-          "desc": "Split on hitting the endgame trigger.",
-          "default": true
+        {
+          "key": "Endgame",
+          "type": "bool_to_value",
+          "value": true,
+          "pointer_paths": {
+            "v1.2.3349": [
+              81593544,
+              3368,
+              56,
+              0,
+              48,
+              1432,
+              3756
+            ]
+          },
+          "setting": {
+            "name": "End",
+            "desc": "Split on hitting the endgame trigger.",
+            "default": true
+          }
+        },
+        {
+          "key": "Pre-Bank Arena Start",
+          "type": "bool_to_value",
+          "value": true,
+          "pointer_paths": {
+            "v1.2.3349": [
+              81593544,
+              3368,
+              56,
+              0,
+              48,
+              1432,
+              5096,
+              104,
+              881
+            ]
+          },
+          "setting": {
+            "name": "Pre-Bank Arena Start",
+            "desc": "Split on entering the pre-bank arena for the first time.",
+            "default": true
+          }
+        },
+        {
+          "key": "Pre-Bank Arena Complete",
+          "type": "bool_to_value",
+          "value": true,
+          "pointer_paths": {
+            "v1.2.3349": [
+              81593544,
+              3368,
+              56,
+              0,
+              48,
+              1432,
+              5096,
+              104,
+              720
+            ]
+          },
+          "setting": {
+            "name": "Pre-Bank Arena Complete",
+            "desc": "Split on completing the pre-bank arena for the first time.",
+            "default": false
+          }
+        },
+        {
+          "key": "Pre-Beach Arena Start",
+          "type": "bool_to_value",
+          "value": true,
+          "pointer_paths": {
+            "v1.2.3349": [
+              81593544,
+              3368,
+              56,
+              0,
+              48,
+              1432,
+              5096,
+              120,
+              881
+            ]
+          },
+          "setting": {
+            "name": "Pre-Beach Arena Start",
+            "desc": "Split on entering the pre-beach arena for the first time.",
+            "default": true
+          }
+        },
+        {
+          "key": "Pre-Beach Arena Complete",
+          "type": "bool_to_value",
+          "value": true,
+          "pointer_paths": {
+            "v1.2.3349": [
+              81593544,
+              3368,
+              56,
+              0,
+              48,
+              1432,
+              5096,
+              120,
+              720
+            ]
+          },
+          "setting": {
+            "name": "Pre-Beach Arena Complete",
+            "desc": "Split on completing the pre-beach arena for the first time.",
+            "default": true
+          }
         }
-      }
-    ],
-    "pickaxe_tiers": [
-      {
-        "key": "PickaxeWood",
-        "tier": 1,
-        "setting": {
-          "name": "Wooden Pickaxe",
-          "desc": "Split on getting the wooden pickaxe.",
-          "default": true
-        }
+      ]
+    },
+    "pickaxe_tiers": {
+      "setting": {
+        "name": "Pickaxe Upgrades",
+        "desc": "Splits triggered by picking up a new pickaxe tier.",
+        "default": true
       },
-      {
-        "key": "PickaxeStone",
-        "tier": 2,
-        "setting": {
-          "name": "Stone Pickaxe",
-          "desc": "Split on getting the stone pickaxe.",
-          "default": true
+      "entries": [
+        {
+          "key": "PickaxeWood",
+          "type": "byte_increasing",
+          "watcher": "pickaxe_tier",
+          "target": 1,
+          "setting": {
+            "name": "Wooden Pickaxe",
+            "desc": "Split on getting the wooden pickaxe.",
+            "default": true
+          }
+        },
+        {
+          "key": "PickaxeStone",
+          "type": "byte_increasing",
+          "watcher": "pickaxe_tier",
+          "target": 2,
+          "setting": {
+            "name": "Stone Pickaxe",
+            "desc": "Split on getting the stone pickaxe.",
+            "default": true
+          }
+        },
+        {
+          "key": "PickaxeIron",
+          "type": "byte_increasing",
+          "watcher": "pickaxe_tier",
+          "target": 3,
+          "setting": {
+            "name": "Iron Pickaxe",
+            "desc": "Split on getting the iron pickaxe.",
+            "default": false
+          }
+        },
+        {
+          "key": "PickaxeDiamond",
+          "type": "byte_increasing",
+          "watcher": "pickaxe_tier",
+          "target": 4,
+          "setting": {
+            "name": "Diamond Pickaxe",
+            "desc": "Split on getting the diamond pickaxe.",
+            "default": false
+          }
         }
+      ]
+    },
+    "area_transitions": {
+      "setting": {
+        "name": "Area Transitions",
+        "desc": "Splits triggered by entering a new major area for the first time.",
+        "default": true
       },
-      {
-        "key": "PickaxeIron",
-        "tier": 3,
-        "setting": {
-          "name": "Iron Pickaxe",
-          "desc": "Split on getting the iron pickaxe.",
-          "default": true
+      "entries": [
+        {
+          "key": "MinesToCage",
+          "type": "byte_transition",
+          "watcher": "area",
+          "from": 1,
+          "to": 2,
+          "setting": {
+            "name": "Mines to Cage",
+            "desc": "Split on going from the Mines area to the Cage area for the first time.",
+            "default": false
+          }
+        },
+        {
+          "key": "CageToFactory",
+          "type": "byte_transition",
+          "watcher": "area",
+          "from": 2,
+          "to": 3,
+          "setting": {
+            "name": "Cage to Factory",
+            "desc": "Split on going from the Cage area to the Factory area for the first time.",
+            "default": true
+          }
+        },
+        {
+          "key": "CageToBank",
+          "type": "byte_transition",
+          "watcher": "area",
+          "from": 2,
+          "to": 4,
+          "setting": {
+            "name": "Cage to Bank",
+            "desc": "Split on going from the Cage area to the Bank area for the first time.",
+            "default": true
+          }
+        },
+        {
+          "key": "CageToBeach",
+          "type": "byte_transition",
+          "watcher": "area",
+          "from": 2,
+          "to": 5,
+          "setting": {
+            "name": "Cage to Beach",
+            "desc": "Split on going from the Cage area to the Beach area for the first time.",
+            "default": true
+          }
+        },
+        {
+          "key": "BeachToCastle",
+          "type": "byte_transition",
+          "watcher": "area",
+          "from": 5,
+          "to": 8,
+          "setting": {
+            "name": "Beach to Castle",
+            "desc": "Split on going from the Beach area to the Castle area for the first time.",
+            "default": true
+          }
+        },
+        {
+          "key": "CastleToCage",
+          "type": "byte_transition",
+          "watcher": "area",
+          "from": 8,
+          "to": 2,
+          "setting": {
+            "name": "Castle to Cage",
+            "desc": "Split on going from the Castle area to the Cage area for the first time.",
+            "default": false
+          }
         }
+      ]
+    },
+    "dynamic_flags": {
+      "setting": {
+        "name": "Dynamic Flags",
+        "desc": "Splits triggered by flags on dynamically resolved objects.",
+        "default": true
       },
-      {
-        "key": "PickaxeDiamond",
-        "tier": 4,
-        "setting": {
-          "name": "Diamond Pickaxe",
-          "desc": "Split on getting the diamond pickaxe.",
-          "default": true
+      "entries": [
+        {
+          "key": "BossFightStart",
+          "type": "dynamic_bool_to_true",
+          "base_pointer": "boss_enemy",
+          "offset": 3208,
+          "setting": {
+            "name": "Boss Fight Start",
+            "desc": "Split on the final boss entering aggro mode.",
+            "default": true
+          }
+        },
+        {
+          "key": "BossFightComplete",
+          "type": "dynamic_bool_to_true",
+          "base_pointer": "boss_enemy",
+          "offset": 3396,
+          "setting": {
+            "name": "Boss Fight Complete",
+            "desc": "Split on defeating the final boss.",
+            "default": true
+          }
         }
-      }
-    ],
-    "area_transitions": [
-      {
-        "key": "MinesToCage",
-        "from": 1,
-        "to": 2,
-        "setting": {
-          "name": "Mines to Cage",
-          "desc": "Split on going from the Mines area to the Cage area for the first time.",
-          "default": true
-        }
-      },
-      {
-        "key": "CageToFactory",
-        "from": 2,
-        "to": 3,
-        "setting": {
-          "name": "Cage to Factory",
-          "desc": "Split on going from the Cage area to the Factory area for the first time.",
-          "default": true
-        }
-      },
-      {
-        "key": "CageToBank",
-        "from": 2,
-        "to": 4,
-        "setting": {
-          "name": "Cage to Bank",
-          "desc": "Split on going from the Cage area to the Bank area for the first time.",
-          "default": true
-        }
-      },
-      {
-        "key": "CageToBeach",
-        "from": 2,
-        "to": 5,
-        "setting": {
-          "name": "Cage to Beach",
-          "desc": "Split on going from the Cage area to the Beach area for the first time.",
-          "default": true
-        }
-      },
-      {
-        "key": "BeachToCastle",
-        "from": 5,
-        "to": 8,
-        "setting": {
-          "name": "Beach to Castle",
-          "desc": "Split on going from the Beach area to the Castle area for the first time.",
-          "default": true
-        }
-      },
-      {
-        "key": "CastleToCage",
-        "from": 8,
-        "to": 2,
-        "setting": {
-          "name": "Castle to Cage",
-          "desc": "Split on going from the Castle area to the Cage area for the first time.",
-          "default": true
-        }
-      }
-    ]
+      ]
+    }
   }
 }

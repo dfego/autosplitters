@@ -9,6 +9,17 @@
 //
 // The intention of this separation of script and data is to make it easier to
 // update and maintain over time, with many updates not requiring code changes.
+//
+// I've also gone a bit overboard and built a dynamic pointer resolution system
+// that can traverse the game's memory graph to find actors and objects that
+// aren't always present at the same memory address, which is useful for things
+// like the final boss quest. This is all driven by the JSON configuration file,
+// so it can be updated without touching the ASL code. In theory, anyway.
+//
+// A bit of documentation on the memory structure...
+//
+// Most pointer paths have these components:
+//   GameEngine -> GameInstance -> LocalPlayers[0] -> PlayerController -> FirstPersonCharacter
 state("SupralandSIU-Win64-Shipping") {}
 
 // Handle all startup logic that does not require the game to be running.
@@ -36,23 +47,21 @@ startup
         print("[Autosplit] Disabled: " + vars.disableReason + " (" + configFilePath + ")");
     } else {
         print("[Autosplit] Loaded config file: " + configFilePath);
-    }
 
-    // If we don't have splits, nothing else makes sense.
-    if (vars.Config["splits"] == null) {
-        print("[Autosplit] No splits found in config file.");
-        vars.scriptEnabled = false;
-        vars.disableReason = "no splits found at top level of config";
+        // If we don't have splits, nothing else makes sense.
+        if (vars.Config["splits"] == null) {
+            print("[Autosplit] No splits found in config file.");
+            vars.scriptEnabled = false;
+            vars.disableReason = "no splits found at top level of config";
+        }
     }
 
     // Helper delegate to build the settings displayed to the user.
-    Action<JsonNode, string> buildSettings = (categoryNode, parentSettingKey) =>  {
-        if (categoryNode != null) {
-            // Ensure all the following settings are children of the parentSettingKey in the UI.
+    Action<JsonNode, string> buildSettings = (entries, parentSettingKey) =>  {
+        if (entries != null) {
             settings.CurrentDefaultParent = parentSettingKey;
 
-            // Iterate over each split
-            foreach (var split in categoryNode.AsArray()) {
+            foreach (var split in entries.AsArray()) {
                 string key = split["key"].GetValue<string>();
                 var settingNode = split["setting"];
                 if (settingNode != null) {
@@ -66,20 +75,20 @@ startup
         }
     };
 
-    // TODO maybe generate the categories from the config file instead of hardcoding
-    // them here, but this is fine for now.
-
-    // Create categories for the settings
+    // Create the top-level settings category.
     settings.Add("splits", true, "Splits");
-    settings.Add("flags", true, "Flags", "splits");
-    settings.Add("areas", true, "Area Transitions", "splits");
-    settings.Add("pickaxe", true, "Pickaxe Upgrades", "splits");
 
-    // Call the above settings builder for each split category.
-    if (vars.Config != null && vars.Config["splits"] != null) {
-        buildSettings(vars.Config["splits"]["flags"], "flags");
-        buildSettings(vars.Config["splits"]["area_transitions"], "areas");
-        buildSettings(vars.Config["splits"]["pickaxe_tiers"], "pickaxe");
+    // Build each category and its child split settings from the same config object.
+    JsonNode splits = vars.Config != null ? vars.Config["splits"] : null;
+    if (splits != null) {
+        foreach (var category in splits.AsObject()) {
+            string categoryKey = category.Key;
+            JsonNode setting = category.Value["setting"];
+            bool settingDefault = setting["default"] != null ? setting["default"].GetValue<bool>() : true;
+            settings.Add(categoryKey, settingDefault, setting["name"].GetValue<string>(), "splits");
+            settings.SetToolTip(categoryKey, setting["desc"].GetValue<string>());
+            buildSettings(category.Value["entries"], categoryKey);
+        }
     }
 }
 
@@ -107,6 +116,15 @@ init
 
     // Dictionary for what function to call for each split.
     vars.splitRules = new Dictionary<string, Func<bool>>();
+    vars.startRule = null;
+
+    // Pointers resolved dynamically in update via vars.resolveSmartPath, keyed by dynamic_pointers name.
+    vars.dynamicPtrs = new Dictionary<string, IntPtr>();
+    vars.dynamicOldStates = new Dictionary<string, bool>();
+    vars.dynamicScanTick = 0;
+
+    // Keep track of any invalid step types in the dynamic pointer resolution so we don't spam the log.
+    vars.invalidSmartPathTypes = new HashSet<string>();
 
     // --- VERSION CHECKING --- //
 
@@ -124,6 +142,13 @@ init
         return false;
     }
 
+    // --- STATIC ADDRESSES --- //
+
+    // Module-relative static address for the UE4.27 FNamePool (GNames).
+    IntPtr moduleBase = modules.First().BaseAddress;
+    int fNamePoolOffset = vars.Config["global_offsets"]["f_name_pool"][version].GetValue<int>();
+    IntPtr fNamePoolBase = moduleBase + fNamePoolOffset;
+
     // --- HELPER FUNCTIONS --- //
 
     // Helper function for buliding pointer maps from the arrays
@@ -134,53 +159,203 @@ init
         return new DeepPointer(baseAddress, offsets);
     };
 
-    // Function factory to build a split check for boolean flags.
-    Func<string, Func<bool>> buildFlagRule = (key) => () => {
+    // Function factory to split when a watched boolean changes.
+    Func<string, Func<bool>> buildBoolChangedRule = (key) => () => {
         // Safely check if the old value is different from the current value.
         var w = vars.watchers[key];
         return w.Old != null && w.Current != null && (bool)w.Old != (bool)w.Current;
     };
 
-    // Function factory to build a split check for pickaxe upgrades.
-    Func<int, Func<bool>> buildPickaxeRule = (targetTier) => () => {
-        var w = vars.watchers["pickaxe_tier"];
-        return w.Old != null && w.Current != null && (byte)w.Old < (byte)w.Current && (byte)w.Current == targetTier;
+    // Function factory to split when a watched boolean changes to a target value.
+    Func<string, bool, Func<bool>> buildBoolToValueRule = (key, target) => () => {
+        var w = vars.watchers[key];
+        return w.Old != null && w.Current != null && (bool)w.Old != (bool)w.Current && (bool)w.Current == target;
     };
 
-    // Function factory to build a split check for pickaxe upgrades.
-    Func<int, int, Func<bool>> buildAreaTransitionRule = (fromArea, toArea) => () => {
-        var w = vars.watchers["area"];
-        return w.Old != null && w.Current != null && (byte)w.Old == fromArea && (byte)w.Current == toArea;
+    // Function factory to split when a watched byte increases to a target value.
+    Func<string, int, Func<bool>> buildByteIncreasingRule = (watcherKey, target) => () => {
+        var w = vars.watchers[watcherKey];
+        return w.Old != null && w.Current != null && (byte)w.Old < (byte)w.Current && (byte)w.Current == target;
     };
+
+    // Function factory to split when a watched byte changes between two values.
+    Func<string, int, int, Func<bool>> buildByteTransitionRule = (watcherKey, from, to) => () => {
+        var w = vars.watchers[watcherKey];
+        return w.Old != null && w.Current != null && (byte)w.Old == from && (byte)w.Current == to;
+    };
+
+    // Function factory to split when a boolean relative to a dynamic pointer changes to true.
+    Func<string, string, int, Func<bool>> buildDynamicBoolToTrueRule = (key, basePointer, offset) => () => {
+        if (!vars.dynamicPtrs.ContainsKey(basePointer) || (IntPtr)vars.dynamicPtrs[basePointer] == IntPtr.Zero) {
+            return false;
+        }
+
+        try {
+            bool currentValue = game.ReadValue<bool>((IntPtr)vars.dynamicPtrs[basePointer] + offset);
+            bool oldValue = vars.dynamicOldStates.ContainsKey(key) && vars.dynamicOldStates[key];
+            vars.dynamicOldStates[key] = currentValue;
+            return !oldValue && currentValue;
+        } catch {
+            return false;
+        }
+    };
+
+    // Resolves a UObject's FName by decoding the UE4.27 FNamePool entry it points to.
+    vars.getObjectName = (Func<IntPtr, string>)((IntPtr obj) => {
+        if (obj == IntPtr.Zero) {
+            return null;
+        }
+
+        try {
+            int comparisonIndex = game.ReadValue<int>(obj + 0x18);
+            int block = comparisonIndex >> 16;
+            int offset = comparisonIndex & 0xffff;
+
+            IntPtr chunkBase = game.ReadPointer(fNamePoolBase + 0x10 + (block * 0x8));
+            if (chunkBase == IntPtr.Zero) {
+                return null;
+            }
+
+            IntPtr entryAddress = chunkBase + (offset * 2);
+            ushort header = game.ReadValue<ushort>(entryAddress);
+            bool isWide = (header & 1) != 0;
+            int length = (header >> 6) & 0x3ff;
+            if (length <= 0 || length > 1024) {
+                return null;
+            }
+
+            if (isWide) {
+                byte[] raw = game.ReadBytes(entryAddress + 2, length * 2);
+                return System.Text.Encoding.Unicode.GetString(raw);
+            } else {
+                byte[] raw = game.ReadBytes(entryAddress + 2, length);
+                return System.Text.Encoding.ASCII.GetString(raw);
+            }
+        } catch {
+            return null;
+        }
+    });
+
+    // Generic graph-traversal state machine driven by a JSON path sequence, so dynamic actor
+    // discovery (e.g. the final boss quest) doesn't need hardcoded nested loops per target.
+    // Each step is either:
+    //   { "type": "module_pointer", "value": <int> }
+    //     currentAddress = *(moduleBase + value)
+    //   { "type": "offset", "value": <int> }
+    //     currentAddress = *(currentAddress + value)
+    //   { "type": "tarray_search", "array_offset": <int>, "name_pointer_offset": <int>, "target_name": <string> }
+    //     Treats currentAddress + array_offset as a TArray<T*> (data ptr at +0x0, count at +0x8),
+    //     resolves each element's name via the pointer at name_pointer_offset, and sets
+    //     currentAddress to the matching element (or IntPtr.Zero if nothing matches).
+    vars.resolveSmartPath = (Func<JsonNode, IntPtr>)((JsonNode pathSequence) => {
+        IntPtr currentAddress = IntPtr.Zero;
+
+        foreach (var step in pathSequence.AsArray()) {
+            string stepType = step["type"].GetValue<string>();
+
+            if (stepType == "module_pointer") {
+                int value = step["value"].GetValue<int>();
+                currentAddress = game.ReadPointer(moduleBase + value);
+            } else if (stepType == "offset") {
+                if (currentAddress == IntPtr.Zero) {
+                    return IntPtr.Zero;
+                }
+
+                int value = step["value"].GetValue<int>();
+                currentAddress = game.ReadPointer(currentAddress + value);
+            } else if (stepType == "tarray_search") {
+                if (currentAddress == IntPtr.Zero) {
+                    return IntPtr.Zero;
+                }
+
+                // Navigate a TArray<T*> structure, searching for an element whose name matches the target_name.
+                // Offset 0 is the data pointer, offset 8 is the count.
+                int arrayOffset = step["array_offset"].GetValue<int>();
+                int namePointerOffset = step["name_pointer_offset"].GetValue<int>();
+                string targetName = step["target_name"].GetValue<string>();
+
+                IntPtr arrayBase = currentAddress + arrayOffset;
+                IntPtr arrayData = game.ReadPointer(arrayBase);
+                int count = game.ReadValue<int>(arrayBase + 0x8);
+
+                IntPtr found = IntPtr.Zero;
+                for (int i = 0; i < count; i++) {
+                    IntPtr itemAddress = game.ReadPointer(arrayData + i * 0x8);
+                    IntPtr namePointer = game.ReadPointer(itemAddress + namePointerOffset);
+                    string itemName = vars.getObjectName(namePointer);
+
+                    if (targetName.Equals(itemName, StringComparison.Ordinal)) {
+                        found = itemAddress;
+                        break;
+                    }
+                }
+
+                currentAddress = found;
+            } else {
+                if (vars.invalidSmartPathTypes.Add(stepType)) {
+                    print("[Autosplit] Invalid dynamic pointer step type: " + stepType);
+                }
+                return IntPtr.Zero;
+            }
+        }
+
+        return currentAddress;
+    });
 
     // --- MEMORY WATCHERS AND SPLIT RULES --- //
 
-    // This is the variable used to watch for starting the timer.
-    vars.inputDisabled = null;
-    if (vars.Config["start_pointers"] != null &&
-        vars.Config["start_pointers"]["input_disabled"] != null &&
-        vars.Config["start_pointers"]["input_disabled"][version] != null) {
-        DeepPointer startPointer = buildPointer(vars.Config["start_pointers"]["input_disabled"][version]);
-        vars.inputDisabled = new MemoryWatcher<bool>(startPointer) { Name = "inputDisabled" };
+    // Build the timer-start rule.
+    JsonNode start = vars.Config["start"];
+    if (start != null && start["pointer_paths"] != null && start["pointer_paths"][version] != null) {
+        string key = start["key"].GetValue<string>();
+        string type = start["type"].GetValue<string>();
+        DeepPointer pointerPath = buildPointer(start["pointer_paths"][version]);
+        vars.watchers.Add(new MemoryWatcher<bool>(pointerPath) { Name = key });
+
+        switch (type) {
+            case "bool_to_value":
+                vars.startRule = buildBoolToValueRule(key, start["value"].GetValue<bool>());
+                break;
+            default:
+                print("[Autosplit] Unsupported start type: " + type);
+                break;
+        }
     }
 
-    // Build rules and watchers, iterating over each unique key under splits.
-    foreach (var splitsCategory in vars.Config["splits"].AsObject()) {
-        string categoryName = splitsCategory.Key;
-
-        // Iterate over each split within the category
-        foreach (var split in splitsCategory.Value.AsArray()) {
+    // Build rules and watchers from each entry's behavior type.
+    foreach (var category in vars.Config["splits"].AsObject()) {
+        foreach (var split in category.Value["entries"].AsArray()) {
             string key = split["key"].GetValue<string>();
+            string type = split["type"].GetValue<string>();
             vars.triggered[key] = false;
 
-            if (categoryName == "flags") {
-                DeepPointer pointerPath = buildPointer(split["pointer_paths"][version]);
-                vars.watchers.Add(new MemoryWatcher<bool>(pointerPath) { Name = key });
-                vars.splitRules[key] = buildFlagRule(key);
-            } else if (categoryName == "pickaxe_tiers") {
-                vars.splitRules[key] = buildPickaxeRule(split["tier"].GetValue<int>());
-            } else if (categoryName == "area_transitions") {
-                vars.splitRules[key] = buildAreaTransitionRule(split["from"].GetValue<int>(), split["to"].GetValue<int>());
+            switch (type) {
+                case "bool_changed":
+                    DeepPointer pointerPath = buildPointer(split["pointer_paths"][version]);
+                    vars.watchers.Add(new MemoryWatcher<bool>(pointerPath) { Name = key });
+                    vars.splitRules[key] = buildBoolChangedRule(key);
+                    break;
+                case "bool_to_value":
+                    DeepPointer boolToValuePath = buildPointer(split["pointer_paths"][version]);
+                    vars.watchers.Add(new MemoryWatcher<bool>(boolToValuePath) { Name = key });
+                    vars.splitRules[key] = buildBoolToValueRule(key, split["value"].GetValue<bool>());
+                    break;
+                case "byte_increasing":
+                    string increasingWatcher = split["watcher"].GetValue<string>();
+                    vars.splitRules[key] = buildByteIncreasingRule(increasingWatcher, split["target"].GetValue<int>());
+                    break;
+                case "byte_transition":
+                    string transitionWatcher = split["watcher"].GetValue<string>();
+                    vars.splitRules[key] = buildByteTransitionRule(transitionWatcher, split["from"].GetValue<int>(), split["to"].GetValue<int>());
+                    break;
+                case "dynamic_bool_to_true":
+                    string basePointer = split["base_pointer"].GetValue<string>();
+                    int offset = split["offset"].GetValue<int>();
+                    vars.splitRules[key] = buildDynamicBoolToTrueRule(key, basePointer, offset);
+                    break;
+                default:
+                    print("[Autosplit] Unsupported split type: " + type);
+                    break;
             }
         }
     }
@@ -197,12 +372,8 @@ init
 // Start the auto-splitter when this returns true.
 start
 {
-    if (vars.scriptEnabled &&
-        vars.inputDisabled != null &&
-        vars.inputDisabled.Old != null &&
-        (bool)vars.inputDisabled.Old &&
-        !(bool)vars.inputDisabled.Current) {
-        print("[Autosplit] start (input disabled off)");
+    if (vars.scriptEnabled && vars.startRule != null && vars.startRule()) {
+        print("[Autosplit] start");
         return true;
     }
 }
@@ -216,16 +387,54 @@ onStart
     foreach (string key in new List<string>(vars.triggered.Keys)) {
         vars.triggered[key] = false;
     }
+
+    // Reset dynamically resolved pointers so a fresh run doesn't reuse pointers from a previous attempt.
+    vars.dynamicPtrs.Clear();
+    vars.dynamicOldStates.Clear();
+    vars.dynamicScanTick = 0;
 }
 
 // Run before split.
 update
 {
-    if (vars.scriptEnabled) {
-        if (vars.inputDisabled != null) {
-            vars.inputDisabled.Update(game);
+    if (!vars.scriptEnabled) {
+        return;
+    }
+
+    vars.watchers.UpdateAll(game);
+
+    // --- DYNAMIC POINTER RESOLUTION --- //
+    // Throttled to once every 60 ticks (~a second) so failed attempts don't spam the log or burn CPU.
+    // Once a pointer resolves it's left alone; it's assumed stable for the rest of the run.
+    vars.dynamicScanTick = (int)vars.dynamicScanTick + 1;
+
+    JsonNode dynamicPointers = vars.Config["dynamic_pointers"];
+    if (dynamicPointers == null || (int)vars.dynamicScanTick % 60 != 0) {
+        return;
+    }
+
+    // Iterate over each dynamic pointer in the config, resolving them if they haven't been resolved yet.
+    // This is done in update because the things dynamic paths are needed for aren't always available on start/init.
+    foreach (var dynamicPointer in dynamicPointers.AsObject()) {
+        string key = dynamicPointer.Key;
+
+        // Skip if we've already resolved this pointer.
+        if (vars.dynamicPtrs.ContainsKey(key)) {
+            continue;
         }
-        vars.watchers.UpdateAll(game);
+
+        try {
+            JsonNode pathSequence = dynamicPointer.Value[version];
+            IntPtr resolved = pathSequence != null ? vars.resolveSmartPath(pathSequence) : IntPtr.Zero;
+            if (resolved == IntPtr.Zero) {
+                continue;
+            }
+
+            vars.dynamicPtrs[key] = resolved;
+            print("[Autosplit] Resolved dynamic pointer '" + key + "' at " + resolved.ToString("x"));
+        } catch (Exception e) {
+            print("[Autosplit] Exception while resolving dynamic pointer '" + key + "': " + e.Message);
+        }
     }
 }
 

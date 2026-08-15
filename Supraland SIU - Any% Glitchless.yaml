@@ -1,11 +1,30 @@
 # Game versions based on ModuleMemorySize (in decimal bytes)
 versions:
-  "86704128": "v1.2.3349"
+  "86704128": v1.2.3349
 
-# Pointers related to starting the timer, which aren't used once the run has started.
-start_pointers:
-  input_disabled:
+# Module-relative offsets for UE globals used outside normal split pointer paths.
+global_offsets:
+  f_name_pool:
+    v1.2.3349: 0x4c4f980
+
+# Rule that starts the timer when its watched boolean changes to the configured value.
+start:
+  key: input_disabled
+  type: bool_to_value
+  value: false
+  pointer_paths:
     v1.2.3349: [0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x580, 0x398]
+
+# Generic pointer paths resolved dynamically at runtime via vars.resolveSmartPath, keyed by name.
+# boss_enemy: GWorld -> Levels TArray (search for DLC2_FinalBoss_C)
+dynamic_pointers:
+  boss_enemy:
+    v1.2.3349:
+      - { type: module_pointer, value: 0x4dd3de0 }
+      - { type: tarray_search, array_offset: 0x138, name_pointer_offset: 0xe8, target_name: DLC2_FinalBoss_C }
+      - { type: offset, value: 0xe8 }  # LevelScriptActor
+      - { type: offset, value: 0x230 } # FinalBossQuest
+      - { type: offset, value: 0x298 } # boss enemy actor
 
 # Pointers that are used in multiple splits or aren't for a specific split, organized by version.
 shared_split_pointers:
@@ -18,7 +37,14 @@ shared_split_pointers:
 splits:
   # Splits mostly for item pickups.
   flags:
+    setting:
+      name: Flags
+      desc: Splits triggered by player-state flags.
+      default: true
+    entries:
     - key: TutorialDone
+      type: bool_to_value
+      value: true
       pointer_paths:
         v1.2.3349: [0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0x7bb]
       setting:
@@ -26,6 +52,8 @@ splits:
         desc: Split on going down the pipe during the intro cutscene.
         default: true
     - key: SkillWalkSpeedx2
+      type: bool_to_value
+      value: true
       pointer_paths:
         v1.2.3349: [0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0x7c2]
       setting:
@@ -33,6 +61,8 @@ splits:
         desc: Split on picking up the speed upgrade in the bunker.
         default: true
     - key: JumpHeightPlus
+      type: bool_to_value
+      value: true
       pointer_paths:
         v1.2.3349: [0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0xa48]
       setting:
@@ -40,13 +70,26 @@ splits:
         desc: Split on picking up the high jump upgrade.
         default: true
     - key: SkillCrouch
+      type: bool_to_value
+      value: true
       pointer_paths:
         v1.2.3349: [0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0x1319]
       setting:
         name: Crouch
         desc: Split on picking up the crouch upgrade.
+        default: false
+    - key: MinesComplete
+      type: bool_to_value
+      value: true
+      pointer_paths:
+        v1.2.3349: [0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0x13e8, 0x20, 0x2d0]
+      setting:
+        name: Mines Complete
+        desc: Split on defeating the wizard at the end of the mines.
         default: true
     - key: SkillHasGrapple
+      type: bool_to_value
+      value: true
       pointer_paths:
         v1.2.3349: [0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0x7cc]
       setting:
@@ -54,6 +97,8 @@ splits:
         desc: Split on picking up the grapple beam.
         default: true
     - key: SkillHasBelt
+      type: bool_to_value
+      value: true
       pointer_paths:
         v1.2.3349: [0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0x7c9]
       setting:
@@ -61,6 +106,8 @@ splits:
         desc: Split on picking up the magnet belt.
         default: true
     - key: MagnetRepel
+      type: bool_to_value
+      value: true
       pointer_paths:
         v1.2.3349: [0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0xec3]
       setting:
@@ -68,6 +115,8 @@ splits:
         desc: Split on picking up the magnet belt repel upgrade.
         default: true
     - key: SkillHasElectricGun
+      type: bool_to_value
+      value: true
       pointer_paths:
         v1.2.3349: [0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0x1200]
       setting:
@@ -75,6 +124,8 @@ splits:
         desc: Split on picking up the electric gun.
         default: true
     - key: SkillGrappleGold
+      type: bool_to_value
+      value: true
       pointer_paths:
         v1.2.3349: [0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0xe88]
       setting:
@@ -82,6 +133,8 @@ splits:
         desc: Split on picking up the grapple beam gold upgrade.
         default: true
     - key: Strong
+      type: bool_to_value
+      value: true
       pointer_paths:
         v1.2.3349: [0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0xe82]
       setting:
@@ -89,6 +142,8 @@ splits:
         desc: Split on getting strong in the gym.
         default: true
     - key: SkillHasForceBlock
+      type: bool_to_value
+      value: true
       pointer_paths:
         v1.2.3349: [0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0x7c3]
       setting:
@@ -96,6 +151,8 @@ splits:
         desc: Split on getting the Force Cube.
         default: true
     - key: SkillHasTranslocator
+      type: bool_to_value
+      value: true
       pointer_paths:
         v1.2.3349: [0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0x7ce]
       setting:
@@ -103,48 +160,108 @@ splits:
         desc: Split on getting the Translocator.
         default: true
     - key: Endgame
+      type: bool_to_value
+      value: true
       pointer_paths:
         v1.2.3349: [0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0xeac]
       setting:
         name: End
         desc: Split on hitting the endgame trigger.
         default: true
+    - key: Pre-Bank Arena Start
+      type: bool_to_value
+      value: true
+      pointer_paths:
+        v1.2.3349: [0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0x13e8, 0x68, 0x371]
+      setting:
+        name: Pre-Bank Arena Start
+        desc: Split on entering the pre-bank arena for the first time.
+        default: true
+    - key: Pre-Bank Arena Complete
+      type: bool_to_value
+      value: true
+      pointer_paths:
+        v1.2.3349: [0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0x13e8, 0x68, 0x2d0]
+      setting:
+        name: Pre-Bank Arena Complete
+        desc: Split on completing the pre-bank arena for the first time.
+        default: false
+    - key: Pre-Beach Arena Start
+      type: bool_to_value
+      value: true
+      pointer_paths:
+        v1.2.3349: [0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0x13e8, 0x78, 0x371]
+      setting:
+        name: Pre-Beach Arena Start
+        desc: Split on entering the pre-beach arena for the first time.
+        default: true
+    - key: Pre-Beach Arena Complete
+      type: bool_to_value
+      value: true
+      pointer_paths:
+        v1.2.3349: [0x4dd04c8, 0xd28, 0x38, 0x0, 0x30, 0x598, 0x13e8, 0x78, 0x2d0]
+      setting:
+        name: Pre-Beach Arena Complete
+        desc: Split on completing the pre-beach arena for the first time.
+        default: true
   # Splits for each pickaxe tier upgrade, which can be toggled on or off in the settings.
   pickaxe_tiers:
+    setting:
+      name: Pickaxe Upgrades
+      desc: Splits triggered by picking up a new pickaxe tier.
+      default: true
+    entries:
     - key: PickaxeWood
-      tier: 1
+      type: byte_increasing
+      watcher: pickaxe_tier
+      target: 1
       setting:
         name: Wooden Pickaxe
         desc: Split on getting the wooden pickaxe.
         default: true
     - key: PickaxeStone
-      tier: 2
+      type: byte_increasing
+      watcher: pickaxe_tier
+      target: 2
       setting:
         name: Stone Pickaxe
         desc: Split on getting the stone pickaxe.
         default: true
     - key: PickaxeIron
-      tier: 3
+      type: byte_increasing
+      watcher: pickaxe_tier
+      target: 3
       setting:
         name: Iron Pickaxe
         desc: Split on getting the iron pickaxe.
-        default: true
+        default: false
     - key: PickaxeDiamond
-      tier: 4
+      type: byte_increasing
+      watcher: pickaxe_tier
+      target: 4
       setting:
         name: Diamond Pickaxe
         desc: Split on getting the diamond pickaxe.
-        default: true
+        default: false
   # Splits for specific area transitions, which can be toggled on or off in the settings.
   area_transitions:
+    setting:
+      name: Area Transitions
+      desc: Splits triggered by entering a new major area for the first time.
+      default: true
+    entries:
     - key: MinesToCage
+      type: byte_transition
+      watcher: area
       from: 1
       to: 2
       setting:
         name: Mines to Cage
         desc: Split on going from the Mines area to the Cage area for the first time.
-        default: true
+        default: false
     - key: CageToFactory
+      type: byte_transition
+      watcher: area
       from: 2
       to: 3
       setting:
@@ -152,6 +269,8 @@ splits:
         desc: Split on going from the Cage area to the Factory area for the first time.
         default: true
     - key: CageToBank
+      type: byte_transition
+      watcher: area
       from: 2
       to: 4
       setting:
@@ -159,6 +278,8 @@ splits:
         desc: Split on going from the Cage area to the Bank area for the first time.
         default: true
     - key: CageToBeach
+      type: byte_transition
+      watcher: area
       from: 2
       to: 5
       setting:
@@ -166,6 +287,8 @@ splits:
         desc: Split on going from the Cage area to the Beach area for the first time.
         default: true
     - key: BeachToCastle
+      type: byte_transition
+      watcher: area
       from: 5
       to: 8
       setting:
@@ -173,9 +296,34 @@ splits:
         desc: Split on going from the Beach area to the Castle area for the first time.
         default: true
     - key: CastleToCage
+      type: byte_transition
+      watcher: area
       from: 8
       to: 2
       setting:
         name: Castle to Cage
         desc: Split on going from the Castle area to the Cage area for the first time.
+        default: false
+  # Splits driven by booleans read relative to a dynamic_pointers entry, resolved at runtime.
+  dynamic_flags:
+    setting:
+      name: Dynamic Flags
+      desc: Splits triggered by flags on dynamically resolved objects.
+      default: true
+    entries:
+    - key: BossFightStart
+      type: dynamic_bool_to_true
+      base_pointer: boss_enemy
+      offset: 0xc88
+      setting:
+        name: Boss Fight Start
+        desc: Split on the final boss entering aggro mode.
+        default: true
+    - key: BossFightComplete
+      type: dynamic_bool_to_true
+      base_pointer: boss_enemy
+      offset: 0xd44
+      setting:
+        name: Boss Fight Complete
+        desc: Split on defeating the final boss.
         default: true
