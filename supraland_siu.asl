@@ -31,7 +31,7 @@ startup
     vars.disableReason = "";
 
     // Load the file
-    string configFilePath = "Components/Supraland SIU - Any% Glitchless.json";
+    string configFilePath = "Components/supraland_siu.json";
     try {
         string jsonString = File.ReadAllText(configFilePath);
         vars.Config = JsonNode.Parse(jsonString);
