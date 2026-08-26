@@ -32,7 +32,7 @@ startup
         Tuple.Create("Hall to Celerion",    "01_Hall",             "07_Bedroom"),
         Tuple.Create("Celerion to Hub",     "07_Bedroom",          "00_Hub"),
         Tuple.Create("Hub to Attic",        "00_Hub",              "08_Attic"),
-        Tuple.Create("Attic to Hub",        "08_Attic",            "00_Hub")
+        Tuple.Create("Hub to Credits",      "00_Hub",              "Credits"),
     };
 
     // Settings for a given transition are on or off. Maybe I could get fancier at some point.
