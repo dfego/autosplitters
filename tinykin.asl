@@ -10,7 +10,10 @@
 // scenes rather than full transitions, since practically speaking that's what we're doing here for this route.
 //
 // The existing load remover functionality by Toothie & just-ero is included as well.
-state("Tinykin") {}
+state("Tinykin")
+{
+    double UnscaledTime : "UnityPlayer.dll", 0x19EEC78, 0x70;
+}
 
 startup
 {
@@ -51,6 +54,13 @@ init
     vars.Helper.GameName = "Tinykin";
     vars.HooksReady = false;
     current.scene = "";
+    current.playingVideo = false;
+
+    vars.counter = 0;
+    vars.videoTriggerCounter = 0;
+    vars.videoToScene = 0;
+    vars.videoToTimer = 0;
+    vars.timeTriggered = false;
 
     vars.Helper.TryLoad = (Func<dynamic, bool>)(mono =>
     {
@@ -59,6 +69,12 @@ init
             // For load removal
             var bootstrapClass = mono["Game", "Bootstrap"];
             vars.Helper["loading"] = mono.Make<bool>(bootstrapClass, "LoadingSceneFromBootstrap");
+            vars.Helper["playingVideo"] = mono.Make<bool>(bootstrapClass, "IsPlayingVideo_Raw");
+
+            // For start trigger
+            var g = mono.GetClass("Game", "Game");
+            vars.Helper["TotalPlayTime"] = g.Make<float>("totalPlayTime");
+            vars.Helper["LastSaveTime"] = g.Make<float>("INSTANCE", "lastSaveTime");
 
             vars.HooksReady = true;
             print("[Autosplit] Hooks ready!");
@@ -73,12 +89,36 @@ init
     });
 }
 
+start
+{
+    bool sceneTrigger = old.scene != null && old.scene == "MainScreen" && current.scene == "01_Hall";
+    bool timeTrigger = (current.TotalPlayTime + current.UnscaledTime - current.LastSaveTime) < 1;
+
+    if (sceneTrigger) {
+        print("[Autosplit] Start triggered: " + old.scene + " to " + current.scene);
+        return true;
+    }
+    if (timeTrigger) {
+        print("[Autosplit] Time triggered: " + (current.TotalPlayTime + current.UnscaledTime - current.LastSaveTime));
+        return true;
+    }
+
+    if (sceneTrigger || timeTrigger) {
+        print("[Autosplit] Start triggered: " + sceneTrigger + " " + timeTrigger);
+        return true;
+    }
+}
+
 update
 {
     try {
         if (!vars.HooksReady) {
             return;
         }
+
+        current.TotalPlayTime = vars.Helper["TotalPlayTime"].Current;
+	    current.LastSaveTime = vars.Helper["LastSaveTime"].Current;
+        current.playingVideo = vars.Helper["playingVideo"].Current;
 
         // Keep the loading state updated every frame.
         // NOTE: if update returns false, isLoading doesn't run, so... don't do that.
@@ -91,6 +131,29 @@ update
         if (liveScene != "StartupScreen") {
             current.scene =  liveScene;
         }
+
+        if (old.scene != null && old.scene != current.scene) {
+            print("[Autosplit] Scene changed from " + old.scene + " to " + current.scene);
+        }
+
+        // 36-54 ticks so far, which is like .5-1 second...
+        bool videoTrigger = old.playingVideo != null && old.playingVideo && !current.playingVideo;
+        bool sceneTrigger = old.scene != null && old.scene == "MainScreen" && current.scene == "01_Hall";
+        bool timeTrigger = (current.TotalPlayTime + current.UnscaledTime - current.LastSaveTime) < 1;
+        if (videoTrigger) {
+            print("[Autosplit] Video trigger at counter: " + vars.counter);
+            vars.videoTriggerCounter = vars.counter;
+        }
+        if (sceneTrigger) {
+            int diff = vars.counter - vars.videoTriggerCounter;
+            print("[Autosplit] Scene trigger at counter: " + vars.counter + " (diff from video trigger: " + diff + ")");
+        }
+        if (!vars.timeTriggered && timeTrigger) {
+            int diff = vars.counter - vars.videoTriggerCounter;
+            print("[Autosplit] Time trigger at counter: " + vars.counter + " (diff from video trigger: " + diff + ")");
+            vars.timeTriggered = true;
+        }
+        vars.counter++;
     }
     catch (Exception e) 
     {
