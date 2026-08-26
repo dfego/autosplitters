@@ -64,7 +64,7 @@ init
 
     vars.Helper.TryLoad = (Func<dynamic, bool>)(mono =>
     {
-        try 
+        try
         {
             // For load removal
             var bootstrapClass = mono["Game", "Bootstrap"];
@@ -79,9 +79,9 @@ init
             vars.HooksReady = true;
             print("[Autosplit] Hooks ready!");
 
-            return true; 
+            return true;
         }
-        catch (Exception e) 
+        catch (Exception e)
         {
             print("[Autosplit] tryload exception: " + e.Message);
             return false;
@@ -155,7 +155,7 @@ update
         }
         vars.counter++;
     }
-    catch (Exception e) 
+    catch (Exception e)
     {
         print("[Autosplit] update exception: " + e.Message);
         return false;
