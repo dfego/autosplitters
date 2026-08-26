@@ -86,6 +86,7 @@ update
 
         // Get the current scene name and store it into current.scene.
         // This makes use of the runtime's magic old/current.
+        // We ignore the "StartupScreen" scene, which is the loading screen between areas.
         string liveScene = vars.Helper.Scenes.Active.Name;
         if (liveScene != "StartupScreen") {
             current.scene =  liveScene;
