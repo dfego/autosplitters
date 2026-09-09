@@ -91,7 +91,15 @@ init
 
 start
 {
-    bool sceneTrigger = old.scene != null && old.scene == "MainScreen" && current.scene == "01_Hall";
+    if (!vars.HooksReady) {
+        print("[Autosplit] Not checking start condition, hooks not ready.");
+        return false;
+    }
+
+    // I used to check a transition here, but for the start trigger, all we need to know is are we in.
+    // The game has two start modes -- it'll either start from main menu or directly when loading.
+    // So when it starts a new game directly, checking the transition created extra paths.
+    bool sceneTrigger = current.scene == "01_Hall";
     bool timeTrigger = (current.TotalPlayTime + current.UnscaledTime - current.LastSaveTime) < 1;
 
     if (sceneTrigger) {
