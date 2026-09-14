@@ -212,9 +212,11 @@ onStart
 
 update
 {
-    vars.numCutscenesWatcher.Update(game);
-    vars.cutsceneLookAtWatcher.Update(game);
-    vars.oldEndsceneTriggered = vars.currentEndsceneTriggered;
+    if (vars.isCrash) {
+        vars.numCutscenesWatcher.Update(game);
+        vars.cutsceneLookAtWatcher.Update(game);
+        vars.oldEndsceneTriggered = vars.currentEndsceneTriggered;
+    }
 
     // The state for the endscene trigger is:
     // 1. The player is strong.
