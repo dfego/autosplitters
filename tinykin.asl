@@ -26,6 +26,7 @@ startup
         Tuple.Create("Hall to Workshop",    "01_Hall",             "00_Hub"),
         Tuple.Create("Hub to Sanctar",      "00_Hub",              "02_LivingRoom_v4"),
         Tuple.Create("Sanctar to Hub",      "02_LivingRoom_v4",    "00_Hub"),
+        Tuple.Create("Sanctar to Foliana",  "02_LivingRoom_v4",    "03_Veranda_V4"),
         Tuple.Create("Hub to Foliana",      "00_Hub",              "03_Veranda_v4"),
         Tuple.Create("Foliana to Balnea",   "03_Veranda_v4",       "04_Bathroom_v2"),
         Tuple.Create("Balnea to Hub",       "04_Bathroom_v2",      "00_Hub"),
