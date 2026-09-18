@@ -10,10 +10,7 @@
 // scenes rather than full transitions, since practically speaking that's what we're doing here for this route.
 //
 // The existing load remover functionality by Toothie & just-ero is included as well.
-state("Tinykin")
-{
-    double UnscaledTime : "UnityPlayer.dll", 0x19EEC78, 0x70;
-}
+state("Tinykin") {}
 
 startup
 {
