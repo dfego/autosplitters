@@ -1,6 +1,6 @@
 // Tinykin Autosplitter & Load Remover
 // Author: Dan Fego / Delphi (autosplitter); Toothie & just-ero (load remover)
-// Last updated: 2026-08-25
+// Last updated: 2026-09-18
 //
 // A really basic autosplitter for Tinykin, loosely based around the current All Parts route.
 // A subset of possible scene transitions are available as settings to turn on and off.
